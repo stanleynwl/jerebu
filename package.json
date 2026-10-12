@@ -1,0 +1,13 @@
+{
+  "name": "jerebu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Malaysia's haze, in cigarettes. Live DOE API readings converted into cigarettes a day.",
+  "type": "module",
+  "scripts": {
+    "dev": "node dev.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
