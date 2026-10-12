@@ -44,20 +44,15 @@
         <p class="cap" data-i18n="cap">worth of harm to your health</p>
       </div>
 
-      <fieldset class="seg" id="regions">
-        <legend data-i18n="regionLegend">Region of Malaysia</legend>
-        <button type="button" data-r="north"></button>
-        <button type="button" data-r="central"></button>
-        <button type="button" data-r="south"></button>
-        <button type="button" data-r="east"></button>
-        <button type="button" data-r="sarawak"></button>
-        <button type="button" data-r="sabah"></button>
+      <fieldset class="seg seg-state">
+        <legend data-i18n="stateLegend">State</legend>
+        <div class="chips" id="stateChips"></div>
       </fieldset>
 
-      <label class="stsel">
-        <span data-i18n="station">Station</span>
-        <select id="station"></select>
-      </label>
+      <fieldset class="seg seg-city" id="cities">
+        <legend data-i18n="cityLegend">City</legend>
+        <div class="chips" id="cityChips"></div>
+      </fieldset>
 
       <div class="stats">
         <div><b id="sApi">–</b><span class="bandlbl" id="sBand"></span><small data-i18n="api">API now</small></div>

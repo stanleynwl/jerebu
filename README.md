@@ -11,11 +11,12 @@ A Malaysian take on [SecondHand](https://secondhand.sangsara.net) (Singapore).
   The hand holds today's number of cigarettes, each with a glowing tip and rising smoke. Haze thickens and the skyline
   fades as the API climbs, the sky follows the actual time in Malaysia, palm trees sway and a plane
   crosses now and then.
-- **Six regions** (North, Central, South, East Coast, Sarawak, Sabah) plus a drill-down to any of the 68 DOE stations.
+- **State → city.** Pick any of the 16 states and federal territories, then a city within it. Stations are grouped
+  into the cities people know (e.g. Tasek Ipoh + Pegoh Ipoh → Ipoh), biggest city first, or you can view the state average.
 - **Hold the map.** Hold the *Hold* button (or the `M` key) to see a paper map of Malaysia with every station
-  and region. A quick tap pins the map open.
+  and each state's number. A quick tap pins the map open.
 - **Near me** picks your nearest station, using your browser's location.
-- **Last 24 hours** sparkline, a **Smokiest right now** ranking, and a **Simulate** slider (API 0–500).
+- **Last 24 hours** sparkline, a **Smokiest cities right now** ranking, and a **Simulate** slider (API 0–500).
 - **English / Bahasa Melayu** toggle.
 
 ## How the number is calculated
@@ -37,7 +38,7 @@ There is no build step: plain HTML, CSS and ES modules, plus two Vercel serverle
 index.html, css/, js/       static site
   js/scene.js               animated SVG and canvas scene
   js/map.js                 paper map overlay (Natural Earth outline, Mercator)
-  js/aqi.js                 API → PM2.5 → cigarettes, bands, regions
+  js/aqi.js                 API → PM2.5 → cigarettes, bands, states, city grouping
   js/app.js                 data loading, UI, i18n
 api/air.js                  GET /api/air: proxies DOE mapcaqm (DOE's CORS only allows its own origin)
 api/trend.js                GET /api/trend?states=…: last 24 h per station

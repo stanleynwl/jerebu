@@ -1,22 +1,12 @@
 // "Hold" map: a paper map of Malaysia held up in front of the scene.
 import { MAP } from './map-data.js';
-import { REGIONS, band } from './aqi.js';
+import { STATES, band } from './aqi.js';
 
 const RAD = Math.PI / 180;
 export const project = (lon, lat) => [
   MAP.scale * lon * RAD + MAP.tx,
   -MAP.scale * Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) + MAP.ty,
 ];
-
-// where each region's number is written (map coords) — tuned by eye
-const LABEL_AT = {
-  north: [92, 150],
-  east: [214, 196],
-  central: [84, 282],
-  south: [222, 344],
-  sarawak: [650, 318],
-  sabah: [846, 168],
-};
 
 const RING = 'M20 70 C 12 30, 70 6, 118 16 C 156 26, 158 86, 112 108 C 70 126, 18 112, 12 78 C 8 56, 30 40, 52 34';
 
@@ -40,8 +30,8 @@ export function createMap(stage, { onPick }) {
         <path class="m-land" d="${MAP.malaysia}" filter="url(#rough)"/>
         <g class="m-stations"></g>
         <g class="m-labels"></g>
-        <text class="m-title" x="468" y="132">MALAYSIA</text>
-        <text class="m-sub" x="468" y="156">LAUT CHINA SELATAN</text>
+        <text class="m-title" x="620" y="122">MALAYSIA</text>
+        <text class="m-sub" x="620" y="146">LAUT CHINA SELATAN</text>
         <g class="m-compass" transform="translate(955 395)">
           <circle r="22"/><path d="M0,-30 L7,0 L0,6 L-7,0 Z" class="needle"/><text y="-36">U</text>
         </g>
@@ -72,36 +62,45 @@ export function createMap(stage, { onPick }) {
   const stationsG = wrap.querySelector('.m-stations');
   const labelsG = wrap.querySelector('.m-labels');
 
-  labelsG.innerHTML = REGIONS.map((r) => {
-    const [lx, ly] = LABEL_AT[r.key];
-    const [ax, ay] = project(...r.anchor);
-    const lead = Math.hypot(lx - ax, ly - ay) > 26 ? `<line x1="${ax}" y1="${ay}" x2="${lx}" y2="${ly - 4}" class="lead"/>` : '';
-    return `<g class="m-reg" data-r="${r.key}">${lead}
-      <g transform="translate(${lx} ${ly})">
-        <rect x="-52" y="-34" width="104" height="70" fill="transparent"/>
-        <path d="${RING}" class="ring" transform="translate(-62 -46) scale(.8)"/>
-        <text class="m-name" y="-14"></text>
-        <text class="m-num" y="22"></text>
+  // one label per state: name over number, with a dotted leader to the state
+  const SIDE = { end: -1, start: 1, middle: 0 };
+  labelsG.innerHTML = STATES.map((st) => {
+    const [lx, ly] = st.label;
+    const [ax, ay] = project(...st.anchor);
+    const side = SIDE[st.align];
+    const fromX = lx - side * 8, fromY = side ? ly - 2 : ly + (ay > ly ? 22 : -26);
+    const lead = Math.hypot(lx - ax, ly - ay) > 30
+      ? `<line x1="${fromX}" y1="${fromY}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" class="lead"/><circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="2.4" class="lead-dot"/>`
+      : '';
+    const cx = side * 50, sx = 0.8, sy = 0.52;
+    return `<g class="m-reg" data-s="${st.id}">${lead}
+      <g transform="translate(${lx} ${ly})" text-anchor="${st.align}">
+        <rect x="${cx - 58}" y="-28" width="116" height="50" fill="transparent"/>
+        <path d="${RING}" class="ring" transform="translate(${(cx - 83 * sx).toFixed(1)} ${(-3 - 65 * sy).toFixed(1)}) scale(${sx} ${sy})"/>
+        <text class="m-name" y="-11"></text>
+        <text class="m-num" y="17"></text>
       </g></g>`;
   }).join('');
 
   labelsG.addEventListener('click', (e) => {
     const g = e.target.closest('.m-reg');
-    if (g && wrap.classList.contains('is-sticky')) onPick(g.dataset.r);
+    if (g && wrap.classList.contains('is-sticky')) onPick(+g.dataset.s);
   });
 
-  function update({ stations, regionValues, selected, names }) {
+  function update({ stations, stateValues, selected, selectedIds, lang }) {
     stationsG.innerHTML = stations
       .map((s) => {
         const [x, y] = project(s.lon, s.lat);
-        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${band(s.api).color}"><title>${s.name} · ${s.api ?? '–'}</title></circle>`;
+        const on = selectedIds.has(s.id);
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on ? 7 : 4.6}" class="${on ? 'on' : ''}" fill="${band(s.api).color}"><title>${s.name} · ${s.api ?? '–'}</title></circle>`;
       })
       .join('');
     labelsG.querySelectorAll('.m-reg').forEach((g) => {
-      const k = g.dataset.r;
-      g.classList.toggle('is-sel', k === selected);
-      g.querySelector('.m-name').textContent = names[k].toUpperCase();
-      const v = regionValues[k];
+      const id = +g.dataset.s;
+      const st = STATES.find((x) => x.id === id);
+      g.classList.toggle('is-sel', id === selected);
+      g.querySelector('.m-name').textContent = (lang === 'ms' && st.mapMs) || st.map;
+      const v = stateValues[id];
       g.querySelector('.m-num').textContent = v == null ? '–' : v.toFixed(1);
     });
   }

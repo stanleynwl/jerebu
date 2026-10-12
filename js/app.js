@@ -1,6 +1,6 @@
 import { createScene } from './scene.js';
 import { createMap } from './map.js';
-import { REGIONS, apiToCigs, apiToPm25, band, regionOfState, haversineKm } from './aqi.js';
+import { STATES, stateById, citiesOf, apiToCigs, apiToPm25, band, haversineKm } from './aqi.js';
 
 // ---------- copy ----------
 const T = {
@@ -8,14 +8,12 @@ const T = {
     title: 'Breathing this air for 24hrs ≈',
     unit: 'cigarettes', unit1: 'cigarette',
     cap: 'worth of harm to your health',
-    regionLegend: 'Region of Malaysia',
-    regions: { north: 'North', central: 'Central', south: 'South', east: 'East Coast', sarawak: 'Sarawak', sabah: 'Sabah' },
-    station: 'Station', allStations: 'All stations (average)',
+    stateLegend: 'State', cityLegend: 'City', allCities: 'All (average)',
     api: 'API now', pm: 'PM2.5 est., µg/m³', worst: 'Worst:',
     trend: 'Last 24 hours', now: 'now',
     updated: 'Updated', justNow: 'just now', minAgo: (m) => `${m} min ago`, hrAgo: (h) => `${h} h ago`,
     locate: 'Near me', simulate: 'Simulate results', aDay: 'a day', reset: 'Reset', hold: 'Hold',
-    smokiest: 'Smokiest right now',
+    smokiest: 'Smokiest cities right now',
     bands: { good: 'Good', moderate: 'Moderate', unhealthy: 'Unhealthy', veryUnhealthy: 'Very unhealthy', hazardous: 'Hazardous', na: 'No data' },
     srcModel: 'Modelled PM2.5 · DOE feed down', srcSnap: 'Saved snapshot · live data unavailable',
     nearest: (n, km) => `Nearest station: ${n} (${km} km)`, locErr: 'Could not get your location',
@@ -26,14 +24,12 @@ const T = {
     title: 'Menghirup udara ini selama 24 jam ≈',
     unit: 'batang rokok', unit1: 'batang rokok',
     cap: 'bersamaan kemudaratan kepada kesihatan anda',
-    regionLegend: 'Wilayah Malaysia',
-    regions: { north: 'Utara', central: 'Tengah', south: 'Selatan', east: 'Pantai Timur', sarawak: 'Sarawak', sabah: 'Sabah' },
-    station: 'Stesen', allStations: 'Semua stesen (purata)',
+    stateLegend: 'Negeri', cityLegend: 'Bandar', allCities: 'Semua (purata)',
     api: 'IPU kini', pm: 'Anggaran PM2.5, µg/m³', worst: 'Paling teruk:',
     trend: '24 jam lepas', now: 'kini',
     updated: 'Dikemas kini', justNow: 'baru sahaja', minAgo: (m) => `${m} minit lalu`, hrAgo: (h) => `${h} jam lalu`,
     locate: 'Dekat saya', simulate: 'Simulasi keputusan', aDay: 'sehari', reset: 'Set semula', hold: 'Tahan',
-    smokiest: 'Paling berasap sekarang',
+    smokiest: 'Bandar paling berasap sekarang',
     bands: { good: 'Baik', moderate: 'Sederhana', unhealthy: 'Tidak sihat', veryUnhealthy: 'Sangat tidak sihat', hazardous: 'Berbahaya', na: 'Tiada data' },
     srcModel: 'PM2.5 model · suapan JAS terputus', srcSnap: 'Data simpanan · data langsung tiada',
     nearest: (n, km) => `Stesen terdekat: ${n} (${km} km)`, locErr: 'Lokasi anda tidak dapat dikesan',
@@ -49,12 +45,12 @@ const store = {
 };
 const ui = {
   lang: store.get('jerebu.lang', (navigator.language || '').toLowerCase().startsWith('ms') ? 'ms' : 'en'),
-  region: store.get('jerebu.region', 'central'),
-  station: null,
+  state: +store.get('jerebu.state', '14'),
+  city: null,
   sim: null,
   near: null,
 };
-if (!REGIONS.some((r) => r.key === ui.region)) ui.region = 'central';
+if (!stateById(ui.state)) ui.state = 14;
 
 let data = null;
 const trendCache = new Map();
@@ -63,10 +59,12 @@ let shown = null;
 const $ = (s) => document.querySelector(s);
 const t = () => T[ui.lang];
 const fmt = (n) => (n == null ? '–' : n.toFixed(1));
+const stateName = (st) => (ui.lang === 'ms' && st.ms) || st.en;
+const cityName = (c) => (ui.lang === 'ms' ? c.ms : c.en);
 
 const stage = $('#stage');
 const scene = createScene(stage);
-const map = createMap(stage, { onPick: (r) => { selectRegion(r); } });
+const map = createMap(stage, { onPick: (id) => selectState(id) });
 
 // ---------- data ----------
 function prettyName(loc) {
@@ -104,37 +102,35 @@ async function load(manual = false) {
   loadTrend();
 }
 
-async function loadTrend() {
-  const reg = REGIONS.find((r) => r.key === ui.region);
-  const key = reg.states.join(',');
-  if (!trendCache.has(key)) {
-    trendCache.set(key, fetch('/api/trend?states=' + key)
+function trendFor(stateId) {
+  if (!trendCache.has(stateId)) {
+    trendCache.set(stateId, fetch('/api/trend?states=' + stateId)
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null));
   }
-  const res = await trendCache.get(key);
-  if (reg.key === ui.region) drawTrend(res);
+  return trendCache.get(stateId);
+}
+
+async function loadTrend() {
+  const id = ui.state;
+  const res = await trendFor(id);
+  if (id === ui.state) drawTrend(res);
 }
 
 // ---------- derived values ----------
 const live = (s) => s.api != null;
+const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
-function regionStats(key) {
-  const reg = REGIONS.find((r) => r.key === key);
-  const list = (data?.stations || []).filter((s) => reg.states.includes(s.stateId));
-  const ok = list.filter(live);
-  const avg = ok.length ? ok.reduce((a, s) => a + s.api, 0) / ok.length : null;
-  const worst = ok.slice().sort((a, b) => b.api - a.api)[0] || null;
-  return { list, avg, worst };
+function stateStats(id) {
+  const cities = citiesOf(id, data?.stations || []);
+  const stations = cities.flatMap((c) => c.stations);
+  const avg = mean(stations.filter(live).map((s) => s.api));
+  const worst = cities.filter((c) => c.api != null).sort((a, b) => b.api - a.api)[0] || null;
+  return { cities, stations, avg, worst };
 }
 
-function liveApi() {
-  if (!data) return null;
-  if (ui.station) {
-    const s = data.stations.find((x) => x.id === ui.station);
-    if (s && live(s)) return s.api;
-  }
-  return regionStats(ui.region).avg;
+function currentCity(stats) {
+  return ui.city ? stats.cities.find((c) => c.key === ui.city) || null : null;
 }
 
 // ---------- rendering ----------
@@ -164,10 +160,17 @@ function tweenNumber(to) {
   requestAnimationFrame(step);
 }
 
+const chip = (attrs, label, pressed, api) =>
+  `<button type="button" ${attrs} aria-pressed="${pressed}"><i class="bd" style="--c:${band(api).color}"></i>${label}</button>`;
+
 function render() {
   applyI18n();
   const L = t();
-  const api = ui.sim ?? liveApi();
+  const stats = stateStats(ui.state);
+  const city = currentCity(stats);
+  if (ui.city && !city) ui.city = null;
+  const liveApi = city ? city.api : stats.avg;
+  const api = ui.sim ?? liveApi;
   const cigs = api == null ? null : apiToCigs(api);
 
   // hero
@@ -175,20 +178,18 @@ function render() {
   $('#unit').textContent = cigs != null && Math.abs(cigs - 1) < 0.05 ? L.unit1 : L.unit;
   document.title = cigs == null ? 'Jerebu' : `${fmt(cigs)} 🚬 · Jerebu`;
 
-  // regions
-  document.querySelectorAll('#regions button').forEach((b) => {
-    const k = b.dataset.r;
-    b.setAttribute('aria-pressed', String(k === ui.region));
-    b.innerHTML = L.regions[k] + (ui.near === k ? ' <span class="near" title="Near you">📍</span>' : '');
-  });
+  // state chips
+  $('#stateChips').innerHTML = STATES.map((st) => {
+    const avg = data ? stateStats(st.id).avg : null;
+    const pin = ui.near === st.id ? ' <span class="near" title="Near you">📍</span>' : '';
+    return chip(`data-s="${st.id}"`, stateName(st) + pin, st.id === ui.state, avg);
+  }).join('');
 
-  // stations
-  const rs = regionStats(ui.region);
-  const sel = $('#station');
-  sel.innerHTML = `<option value="">${L.allStations}</option>` + rs.list
-    .slice().sort((a, b) => a.name.localeCompare(b.name))
-    .map((s) => `<option value="${s.id}" ${live(s) ? '' : 'disabled'}>${s.name}, ${s.state} · ${s.api ?? '–'}</option>`).join('');
-  sel.value = ui.station && rs.list.some((s) => s.id === ui.station) ? ui.station : '';
+  // city chips (hidden when the state has a single city)
+  const multi = stats.cities.length > 1;
+  $('#cities').hidden = !stats.cities.length;
+  $('#cityChips').innerHTML = (multi ? chip('data-c=""', L.allCities, !ui.city, stats.avg) : '') +
+    stats.cities.map((c) => chip(`data-c="${c.key}"`, cityName(c), multi ? c.key === ui.city : true, c.api)).join('');
 
   // stats
   const b = band(api);
@@ -196,8 +197,8 @@ function render() {
   $('#sBand').textContent = L.bands[b.key];
   $('#sBand').style.setProperty('--c', b.color);
   $('#sPm').textContent = api == null ? '–' : Math.round(apiToPm25(api));
-  $('#sWorst').textContent = rs.worst ? rs.worst.api : '–';
-  $('#sWorstName').textContent = rs.worst ? `${L.worst} ${rs.worst.name}` : '';
+  $('#sWorst').textContent = stats.worst ? Math.round(stats.worst.api) : '–';
+  $('#sWorstName').textContent = stats.worst ? `${L.worst} ${cityName(stats.worst)}` : '';
 
   // updated line + source badge
   updateAgo();
@@ -209,29 +210,29 @@ function render() {
   const slider = $('#sim');
   if (ui.sim == null && api != null) slider.value = Math.round(api);
   $('#simLabel').textContent = cigs == null ? '' : `${fmt(cigs)} ${L.aDay}`;
-  slider.style.setProperty('--p', (slider.value / 5) + '%');
   $('#reset').disabled = ui.sim == null;
   document.body.classList.toggle('is-sim', ui.sim != null);
 
-  // ranking
-  const top = (data?.stations || []).filter(live).sort((a, b2) => b2.api - a.api).slice(0, 5);
-  $('#rank').innerHTML = top.map((s) => `<li><button type="button" data-id="${s.id}">
-      <span class="dotc" style="--c:${band(s.api).color}"></span>
-      <span class="rn">${s.name}<small>${s.state}</small></span>
-      <span class="rv">${fmt(apiToCigs(s.api))} 🚬<small>API ${s.api}</small></span></button></li>`).join('');
+  // nationwide city ranking
+  const allCities = STATES.flatMap((st) => citiesOf(st.id, data?.stations || []).map((c) => ({ ...c, st })));
+  const top = allCities.filter((c) => c.api != null).sort((a, c) => c.api - a.api).slice(0, 5);
+  $('#rank').innerHTML = top.map((c) => `<li><button type="button" data-s="${c.st.id}" data-c="${c.key}">
+      <span class="dotc" style="--c:${band(c.api).color}"></span>
+      <span class="rn">${cityName(c)}<small>${stateName(c.st)}</small></span>
+      <span class="rv">${fmt(apiToCigs(c.api))} 🚬<small>API ${Math.round(c.api)}</small></span></button></li>`).join('');
 
   // scene + map
   if (api != null) scene.setLevel(api, cigs);
-  const regionValues = Object.fromEntries(REGIONS.map((r) => {
-    const v = regionStats(r.key).avg;
-    return [r.key, v == null ? null : apiToCigs(v)];
+  const stateValues = Object.fromEntries(STATES.map((st) => {
+    const v = stateStats(st.id).avg;
+    return [st.id, v == null ? null : apiToCigs(v)];
   }));
-  map.update({ stations: data?.stations || [], regionValues, selected: ui.region, names: L.regions });
+  const selectedIds = new Set((city ? city.stations : stats.stations).map((s) => s.id));
+  map.update({ stations: data?.stations || [], stateValues, selected: ui.state, selectedIds, lang: ui.lang });
 
-  // trend highlight follows the station choice
-  const reg = REGIONS.find((r) => r.key === ui.region);
-  const cached = trendCache.get(reg.states.join(','));
-  if (cached) cached.then((res) => { if (reg.key === ui.region) drawTrend(res); });
+  // trend follows the city choice
+  const cached = trendCache.get(ui.state);
+  if (cached) { const id = ui.state; cached.then((res) => { if (id === ui.state) drawTrend(res); }); }
 }
 
 function updateAgo() {
@@ -249,7 +250,9 @@ function updateAgo() {
 function drawTrend(res) {
   const box = $('#trend');
   if (!res?.series || !data) { box.hidden = true; return; }
-  const ids = ui.station ? [ui.station] : regionStats(ui.region).list.map((s) => s.id);
+  const stats = stateStats(ui.state);
+  const city = currentCity(stats);
+  const ids = (city ? city.stations : stats.stations).map((s) => s.id);
   const byT = new Map();
   for (const id of ids) {
     for (const [ts, v] of res.series[id] || []) {
@@ -288,29 +291,29 @@ function toast(msg) {
 }
 
 // ---------- interactions ----------
-function selectRegion(key, station = null) {
-  ui.region = key;
-  ui.station = station;
-  store.set('jerebu.region', key);
+function selectState(id, city = null) {
+  ui.state = id;
+  ui.city = city;
+  store.set('jerebu.state', String(id));
   render();
   loadTrend();
 }
 
-$('#regions').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-r]');
-  if (b) selectRegion(b.dataset.r);
+$('#stateChips').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-s]');
+  if (b) selectState(+b.dataset.s);
 });
 
-$('#station').addEventListener('change', (e) => {
-  ui.station = e.target.value || null;
+$('#cityChips').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-c]');
+  if (!b) return;
+  ui.city = b.dataset.c || null;
   render();
 });
 
 $('#rank').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-id]');
-  if (!b) return;
-  const s = data.stations.find((x) => x.id === b.dataset.id);
-  if (s) selectRegion(regionOfState(s.stateId), s.id);
+  const b = e.target.closest('button[data-s]');
+  if (b) selectState(+b.dataset.s, b.dataset.c);
 });
 
 document.querySelector('.lang').addEventListener('click', (e) => {
@@ -343,9 +346,10 @@ $('#locate').addEventListener('click', () => {
       .map((s) => ({ s, d: haversineKm(me, s) }))
       .sort((a, b) => a.d - b.d)[0];
     if (!best) return;
-    ui.near = regionOfState(best.s.stateId);
-    selectRegion(ui.near, best.s.id);
-    toast(t().nearest(best.s.name, Math.round(best.d)));
+    const city = citiesOf(best.s.stateId, data.stations).find((c) => c.stations.some((s) => s.id === best.s.id));
+    ui.near = best.s.stateId;
+    selectState(best.s.stateId, city ? city.key : null);
+    toast(t().nearest(city ? cityName(city) : best.s.name, Math.round(best.d)));
   }, () => toast(t().locErr), { timeout: 10000, maximumAge: 600000 });
 });
 
