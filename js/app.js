@@ -1,6 +1,8 @@
 import { createScene } from './scene.js';
 import { createMap } from './map.js';
 import { STATES, stateById, citiesOf, apiToCigs, apiToPm25, band, haversineKm } from './aqi.js';
+import { THEMES, themeFor } from './themes.js';
+import { BRANDS, brandByKey, brandIcon } from './brands.js';
 
 // ---------- copy ----------
 const T = {
@@ -8,7 +10,7 @@ const T = {
     title: 'Breathing this air for 24hrs ≈',
     unit: 'cigarettes', unit1: 'cigarette',
     cap: 'worth of harm to your health',
-    stateLegend: 'State', cityLegend: 'City', allCities: 'All (average)',
+    stateLegend: 'State', cityLegend: 'City', allCities: 'All (average)', brandLegend: 'Brand',
     api: 'API now', pm: 'PM2.5 est., µg/m³', worst: 'Worst:',
     trend: 'Last 24 hours', now: 'now',
     updated: 'Updated', justNow: 'just now', minAgo: (m) => `${m} min ago`, hrAgo: (h) => `${h} h ago`,
@@ -24,7 +26,7 @@ const T = {
     title: 'Menghirup udara ini selama 24 jam ≈',
     unit: 'batang rokok', unit1: 'batang rokok',
     cap: 'bersamaan kemudaratan kepada kesihatan anda',
-    stateLegend: 'Negeri', cityLegend: 'Bandar', allCities: 'Semua (purata)',
+    stateLegend: 'Negeri', cityLegend: 'Bandar', allCities: 'Semua (purata)', brandLegend: 'Jenama',
     api: 'IPU kini', pm: 'Anggaran PM2.5, µg/m³', worst: 'Paling teruk:',
     trend: '24 jam lepas', now: 'kini',
     updated: 'Dikemas kini', justNow: 'baru sahaja', minAgo: (m) => `${m} minit lalu`, hrAgo: (h) => `${h} jam lalu`,
@@ -47,12 +49,14 @@ const ui = {
   lang: store.get('jerebu.lang', (navigator.language || '').toLowerCase().startsWith('ms') ? 'ms' : 'en'),
   state: +store.get('jerebu.state', '14'),
   city: null,
+  brand: brandByKey(store.get('jerebu.brand', 'klasik')).key,
   sim: null,
   near: null,
 };
 if (!stateById(ui.state)) ui.state = 14;
 
 let data = null;
+let appliedBrand = null;
 const trendCache = new Map();
 let shown = null;
 
@@ -191,6 +195,20 @@ function render() {
   $('#cityChips').innerHTML = (multi ? chip('data-c=""', L.allCities, !ui.city, stats.avg) : '') +
     stats.cities.map((c) => chip(`data-c="${c.key}"`, cityName(c), multi ? c.key === ui.city : true, c.api)).join('');
 
+  // brand chips + the scene's cigarettes
+  $('#brandChips').innerHTML = BRANDS.map((br) =>
+    `<button type="button" data-b="${br.key}" aria-pressed="${br.key === ui.brand}" title="Jerebu ${br.ms}">${brandIcon(br)}${ui.lang === 'ms' ? br.ms : br.en}</button>`).join('');
+  if (appliedBrand !== ui.brand) { scene.setBrand(brandByKey(ui.brand)); appliedBrand = ui.brand; }
+
+  // backdrop follows the city (a single-city state uses that city)
+  const st = stateById(ui.state);
+  const themeCity = city || (stats.cities.length === 1 ? stats.cities[0] : null);
+  const th = themeFor(ui.state, themeCity ? themeCity.key : null);
+  scene.setTheme(th.key, th.seed);
+  const place = themeCity && cityName(themeCity) !== stateName(st) ? `${cityName(themeCity)}, ${stateName(st)}` : stateName(st);
+  $('#locCity').textContent = '📍 ' + place;
+  $('#locNote').textContent = THEMES[th.key][ui.lang] || '';
+
   // stats
   const b = band(api);
   $('#sApi').textContent = api == null ? '–' : Math.round(api);
@@ -308,6 +326,14 @@ $('#cityChips').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-c]');
   if (!b) return;
   ui.city = b.dataset.c || null;
+  render();
+});
+
+$('#brandChips').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-b]');
+  if (!b) return;
+  ui.brand = b.dataset.b;
+  store.set('jerebu.brand', ui.brand);
   render();
 });
 

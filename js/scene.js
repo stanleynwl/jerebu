@@ -1,15 +1,13 @@
-// The animated scene: a KL skyline seen from a mamak table, a hand holding
+// The animated scene: a city backdrop seen from a mamak table, a hand holding
 // today's cigarettes, drifting haze and smoke. Everything lives in a 1024×1024
-// "world" that is scaled to cover the stage.
+// "world" that is scaled to cover the stage. Backdrops come from themes.js and
+// crossfade when the city changes.
+import { THEMES, FLYERS, FACADES, rng } from './themes.js';
 
 const W = 1024;
 const MAX_CIGS = 15;
 
 // ---------- small helpers ----------
-function rng(seed) {
-  let s = seed % 2147483647;
-  return () => (s = (s * 16807) % 2147483647) / 2147483647;
-}
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -41,156 +39,59 @@ export function malaysiaHour() {
   return (d.getUTCHours() + 8 + d.getUTCMinutes() / 60) % 24;
 }
 
+// Day / night colours for the backdrop parts, exposed as CSS variables.
+const PALETTE = {
+  '--b0': ['#6f7e99', '#1a2340'], '--b1': ['#7b8aa4', '#202a47'], '--b2': ['#8897b0', '#28334f'],
+  '--lm': ['#95a4bd', '#2f3b5c'], '--arch': ['#3b2b25', '#f2b75e'], '--roof': ['#8c3a28', '#4a2219'],
+  '--trunk': ['#6b5135', '#2e2418'], '--frond': ['#3f7a3a', '#1b3020'],
+  '--hill-far': ['#7f9aa3', '#1a2440'], '--hill-mid': ['#5b8468', '#141f2c'], '--karst': ['#8a9e90', '#1d2738'],
+  '--mtn': ['#5f7896', '#18223c'], '--mtn-rock': ['#90a3b8', '#28334f'], '--sand': ['#e8d5a6', '#3a3a44'],
+  '--paddy': ['#86bd4f', '#1b2a22'], '--paddy2': ['#9dce63', '#22322a'], '--grass': ['#6fa04a', '#17241d'],
+  '--wood': ['#8d5c37', '#2a1d18'], '--wood-dk': ['#5e3b22', '#1b120e'], '--zinc': ['#9aa4aa', '#2b3038'],
+  '--attap': ['#a07c46', '#2c2219'], '--tile': ['#a8432f', '#3a1a17'], '--minang': ['#3a3a40', '#141418'],
+  '--jg0': ['#6a9579', '#17222c'], '--jg1': ['#477d55', '#111c21'], '--jg2': ['#2f6340', '#0d1619'],
+  '--concrete': ['#bdbab2', '#363946'], '--concrete-dk': ['#93908a', '#262833'], '--steel': ['#aab2ba', '#2f3644'],
+  '--tank': ['#e6e4dd', '#3c404c'], '--rock': ['#7c7a72', '#1f2230'], '--hull': ['#34424f', '#151a26'],
+  '--kwin': ['#3a3346', '#ffcf7a'],
+};
+const ACCENTS = {
+  red: '#c7372f', blue: '#2f6fb5', green: '#2f8f4e', orange: '#e07b2a', yellow: '#e9c23a', teal: '#2a9d8f', white: '#f1ede4',
+  pink: '#d98ca0', rose: '#efd6d6', gold: '#d4a63a', black: '#2a2a2e', brown: '#7a4a2a', cream: '#efe3c8',
+};
+
 // ---------- static SVG markup ----------
-function halfFromWidths(cx, rows) {
-  const mid = rows.map(([y]) => `${cx},${y}`);
-  const right = rows.slice().reverse().map(([y, w]) => `${(cx + w).toFixed(1)},${y}`);
-  return mid.concat(right).join(' ');
-}
-
-function polygonFromWidths(cx, rows) {
-  const left = rows.map(([y, w]) => `${(cx - w).toFixed(1)},${y}`);
-  const right = rows.slice().reverse().map(([y, w]) => `${(cx + w).toFixed(1)},${y}`);
-  return left.concat(right).join(' ');
-}
-
-function petronas(cx) {
-  const rows = [[748, 30], [602, 30], [602, 27], [522, 27], [522, 24], [472, 24], [472, 20], [432, 20], [432, 16],
-    [402, 16], [402, 11], [380, 11], [372, 6], [364, 3], [364, 1.8], [282, 0.6]];
-  const pts = polygonFromWidths(cx, rows);
-  let fins = '';
-  for (let i = -2; i <= 2; i++) fins += `<line x1="${cx + i * 9}" y1="748" x2="${cx + i * 4}" y2="400" />`;
-  return `<g class="lm"><polygon points="${pts}" class="lm-body"/>
-    <polygon points="${halfFromWidths(cx, rows)}" class="lm-lit"/>
-    <g class="lm-fins">${fins}</g></g>`;
-}
-
-function merdeka(cx) {
-  const rows = [[748, 40], [640, 38], [540, 34], [450, 29], [380, 23], [330, 17], [300, 11], [284, 6], [284, 2.6], [150, 0.5]];
-  const pts = polygonFromWidths(cx, rows);
-  let facets = '';
-  for (let y = 740; y > 320; y -= 34) {
-    const w = 40 - (748 - y) * 0.055;
-    facets += `<polyline points="${cx - w},${y} ${cx},${y - 22} ${cx + w},${y}" />`;
-  }
-  return `<g class="lm"><polygon points="${pts}" class="lm-body"/><polygon points="${halfFromWidths(cx, rows)}" class="lm-lit"/><g class="lm-fins">${facets}</g></g>`;
-}
-
-function klTower(cx) {
-  const shaft = polygonFromWidths(cx, [[748, 15], [700, 9], [600, 6], [462, 5]]);
-  const pod = `M${cx - 6},462 C${cx - 22},458 ${cx - 31},446 ${cx - 30},432 C${cx - 29},418 ${cx - 22},406 ${cx - 9},400
-    L${cx + 9},400 C${cx + 22},406 ${cx + 29},418 ${cx + 30},432 C${cx + 31},446 ${cx + 22},458 ${cx + 6},462 Z`;
-  const mast = polygonFromWidths(cx, [[400, 3.4], [368, 2.4], [368, 1.3], [292, 0.5]]);
-  return `<g class="lm"><polygon points="${shaft}" class="lm-body"/><path d="${pod}" class="lm-body"/>
-    <path d="M${cx - 29},432 L${cx + 29},432" class="lm-band"/>
-    <polygon points="${mast}" class="lm-body"/><circle cx="${cx}" cy="292" r="2.6" class="beacon"/></g>`;
-}
-
-function farCity() {
-  const r = rng(118);
-  let bldg = '', wins = '';
-  let x = -10;
-  while (x < W + 10) {
-    const w = 34 + r() * 58;
-    const h = 70 + r() * 210 * (0.55 + 0.45 * Math.sin((x / W) * Math.PI * 1.3 + 0.4) ** 2);
-    const top = 748 - h;
-    const tone = Math.floor(r() * 3);
-    bldg += `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h + 4}" class="b b${tone}"/>`;
-    if (r() > 0.6) bldg += `<rect x="${(x + w / 2 - 1).toFixed(1)}" y="${(top - 18).toFixed(1)}" width="2" height="18" class="b b${tone}"/>`;
-    for (let wy = top + 10; wy < 735; wy += 13) {
-      for (let wx = x + 6; wx < x + w - 8; wx += 10) {
-        if (r() > 0.62) {
-          const dur = (4 + r() * 9).toFixed(1), delay = (-r() * 12).toFixed(1);
-          wins += `<rect x="${wx.toFixed(1)}" y="${wy.toFixed(1)}" width="4" height="6" class="win" style="animation-duration:${dur}s;animation-delay:${delay}s"/>`;
-        }
-      }
-    }
-    x += w + 2 + r() * 10;
-  }
-  return `<g class="far-bldg">${bldg}</g><g class="far-wins">${wins}</g>`;
-}
-
-const SIGNS = ['KEDAI KOPI', 'RESTORAN', 'MAMAK 24 JAM', 'KEDAI RUNCIT', 'FARMASI', 'DOBI', 'NASI KANDAR', 'KEDAI EMAS'];
-const FACADES = ['#e9c99f', '#9cc4b6', '#e2a49c', '#efd99b', '#a7bde0', '#d6b0d1', '#c9d99a', '#f0b98a'];
-
-function shophouses() {
-  const r = rng(57);
-  let out = '';
-  let x = -30, i = 0;
-  while (x < W + 30) {
-    const w = 132 + r() * 30, h = 168 + r() * 44, base = 908, top = base - h;
-    const c = `var(--f${i % FACADES.length})`, sign = SIGNS[(i * 3) % SIGNS.length];
-    const signBg = i % 3 === 0 ? '#b3261e' : i % 3 === 1 ? '#1f5f3f' : '#14306b';
-    const winW = w * 0.24, upY = top + 18;
-    out += `<g class="sh">
-      <rect x="${x}" y="${top}" width="${w}" height="${h}" fill="${c}"/>
-      <rect x="${x}" y="${top}" width="${w}" height="${h}" fill="url(#facadeShade)"/>
-      <polygon points="${x - 8},${top + 2} ${x + w + 8},${top + 2} ${x + w - 4},${top - 20} ${x + 4},${top - 20}" class="roof"/>
-      <rect x="${x - 4}" y="${top}" width="${w + 8}" height="6" class="cornice"/>
-      ${[0.16, 0.6].map((f) => {
-        const wx = x + w * f;
-        return `<rect x="${wx}" y="${upY}" width="${winW}" height="${h * 0.3}" rx="${winW / 2}" class="shwin"/>
-          <rect x="${wx - 9}" y="${upY + 4}" width="9" height="${h * 0.3 - 4}" class="shutter"/>
-          <rect x="${wx + winW}" y="${upY + 4}" width="9" height="${h * 0.3 - 4}" class="shutter"/>`;
-      }).join('')}
-      <rect x="${x + 10}" y="${top + h * 0.47}" width="${w - 20}" height="22" fill="${signBg}"/>
-      <text x="${x + w / 2}" y="${top + h * 0.47 + 15.5}" class="signtxt">${sign}</text>
-      ${[0, 1, 2].map((k) => {
-        const aw = (w - 24) / 3, ax = x + 8 + k * (aw + 4), ay = top + h * 0.47 + 30;
-        return `<path d="M${ax},${base} V${ay + 16} Q${ax + aw / 2},${ay - 6} ${ax + aw},${ay + 16} V${base} Z" class="arch"/>`;
-      }).join('')}
-    </g>`;
-    x += w + 2;
-    i++;
-  }
-  return out;
-}
-
-function palm(x, base, scale, flip) {
-  const fronds = [-150, -118, -86, -54, -22, 12, 40].map((a) =>
-    `<path d="M0,0 C30,-26 74,-30 118,-6 C78,-14 42,-8 0,4 Z" transform="rotate(${a}) scale(${0.9 + Math.abs(a) / 600})" class="frond"/>`
-  ).join('');
-  return `<g transform="translate(${x} ${base}) scale(${flip ? -scale : scale} ${scale})">
-    <path d="M-7,0 C-12,-90 -2,-190 26,-290 L36,-288 C12,-190 6,-90 7,0 Z" class="trunk"/>
-    <g transform="translate(31 -292)"><g class="crown">${fronds}
-      <circle cx="-6" cy="8" r="7" class="coco"/><circle cx="6" cy="10" r="7" class="coco"/></g></g>
-  </g>`;
-}
-
-function backSvg() {
-  return `<svg class="layer" viewBox="0 0 ${W} ${W}" aria-hidden="true">
+function skySvg() {
+  return `<svg class="layer sky" viewBox="0 0 ${W} ${W}" aria-hidden="true">
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop id="skyTop" offset="0"/><stop id="skyBot" offset="0.78"/>
-    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop id="skyTop" offset="0"/><stop id="skyBot" offset="0.78"/></linearGradient>
     <radialGradient id="sunGlow"><stop offset="0" stop-color="#fff2c0" stop-opacity=".85"/><stop offset=".35" stop-color="#ffd27a" stop-opacity=".35"/><stop offset="1" stop-color="#ffb35c" stop-opacity="0"/></radialGradient>
     <linearGradient id="hzFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="hzc" stop-opacity=".25"/><stop offset=".4" class="hzc" stop-opacity=".85"/><stop offset=".72" class="hzc" stop-opacity="1"/><stop offset="1" class="hzc" stop-opacity="1"/></linearGradient>
     <linearGradient id="hzMid" x1="0" y1="0" x2="0" y2="1"><stop offset=".35" class="hzc" stop-opacity="0"/><stop offset=".7" class="hzc" stop-opacity=".8"/><stop offset="1" class="hzc" stop-opacity="1"/></linearGradient>
     <linearGradient id="facadeShade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".0"/><stop offset=".85" stop-color="#000" stop-opacity=".06"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>
+    <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="wt"/><stop offset="1" class="wb"/></linearGradient>
   </defs>
   <rect width="${W}" height="${W}" fill="url(#sky)"/>
   <g id="stars"></g>
   <g id="sun"><circle r="150" fill="url(#sunGlow)" id="sunGlowC"/><circle r="44" id="sunDisc"/></g>
   <g id="moon"><circle r="70" fill="url(#sunGlow)" opacity=".35"/><circle r="24" fill="#f2edd9"/><circle cx="-7" cy="-5" r="5" fill="#d9d2b8"/><circle cx="8" cy="7" r="3.5" fill="#d9d2b8"/></g>
-  <g id="plane"><path d="M0,0 L26,-2 L34,-9 L37,-9 L33,-1 L46,0 L33,1 L37,9 L34,9 L26,2 Z" class="planeBody"/><circle cx="46" cy="0" r="2" class="planeLight"/></g>
-  <g id="far">${farCity()}${klTower(122)}${merdeka(300)}${petronas(706)}${petronas(800)}
-    <rect x="733" y="586" width="40" height="7" class="lm-body"/><path d="M735,593 L753,640 L771,593" class="lm-band" fill="none"/>
-  </g>
-  <rect id="hazeFar" y="0" width="${W}" height="${W}" fill="url(#hzFar)"/>
-  <g id="mid">${palm(42, 912, 1.02, false)}${shophouses()}${palm(994, 912, 0.95, true)}</g>
-  <rect id="hazeMid" y="0" width="${W}" height="${W}" fill="url(#hzMid)"/>
+  <g id="flyer"></g>
 </svg>`;
 }
+
+const landSvg = (o) => `<svg class="layer land" viewBox="0 0 ${W} ${W}" aria-hidden="true">
+  <g class="far">${o.far}</g>
+  <rect class="hazeFar" width="${W}" height="${W}" fill="url(#hzFar)"/>
+  <g class="mid">${o.mid}</g>
+  <rect class="hazeMid" width="${W}" height="${W}" fill="url(#hzMid)"/>
+</svg>`;
 
 function cigMarkup(i) {
   return `<g class="cig" id="cig${i}">
     <g class="cigBody">
-      <rect class="cpaper" y="-8" height="16"/>
-      <rect class="filter" x="-95" y="-8" width="80" height="16" fill="url(#cork)"/>
-      <rect class="band" x="-97" y="-8" width="3" height="16"/>
-      <rect class="ash" y="-7.5" width="11" height="15" rx="3"/>
-      <circle class="glow" r="22" fill="url(#ember)"/>
-      <circle class="core" r="6.5"/>
+      <rect class="cpaper"/><rect class="filter"/><rect class="band"/><rect class="deco"/>
+      <rect class="cshade" fill="url(#cylShade)"/>
+      <rect class="ash" rx="3"/>
+      <circle class="glow" fill="url(#ember)"/><circle class="core"/>
     </g>
   </g>`;
 }
@@ -212,7 +113,15 @@ function frontSvg() {
     <linearGradient id="skin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e0a57c"/><stop offset=".55" stop-color="#c88b5e"/><stop offset="1" stop-color="#a9704a"/></linearGradient>
     <linearGradient id="armSkin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d49a6e"/><stop offset="1" stop-color="#9c6440"/></linearGradient>
     <radialGradient id="ember"><stop offset="0" stop-color="#fff1a8" stop-opacity="1"/><stop offset=".25" stop-color="#ff9a3c" stop-opacity=".9"/><stop offset=".6" stop-color="#ff4d1a" stop-opacity=".35"/><stop offset="1" stop-color="#ff3000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="cylShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></linearGradient>
     <pattern id="cork" width="10" height="8" patternUnits="userSpaceOnUse"><rect width="10" height="8" fill="#d68c3d"/><circle cx="2" cy="2" r="1" fill="#b86e27"/><circle cx="7" cy="5" r="1.1" fill="#e9a659"/><circle cx="5" cy="1" r=".7" fill="#b86e27"/></pattern>
+    <pattern id="corkDark" width="10" height="8" patternUnits="userSpaceOnUse"><rect width="10" height="8" fill="#9a5a26"/><circle cx="2" cy="2" r="1" fill="#6e3d16"/><circle cx="7" cy="5" r="1.1" fill="#b87436"/></pattern>
+    <pattern id="mint" width="12" height="8" patternUnits="userSpaceOnUse"><rect width="12" height="8" fill="#eef7f0"/><circle cx="3" cy="2" r="1.1" fill="#7cc79a"/><circle cx="9" cy="6" r="1.1" fill="#7cc79a"/></pattern>
+    <pattern id="kretek" width="9" height="8" patternUnits="userSpaceOnUse"><rect width="9" height="8" fill="#5a3a22"/><circle cx="2" cy="3" r=".9" fill="#7a5232"/><circle cx="6" cy="6" r=".8" fill="#3f2816"/><circle cx="7" cy="1.5" r=".7" fill="#7a5232"/></pattern>
+    <pattern id="nipah" width="14" height="6" patternUnits="userSpaceOnUse"><rect width="14" height="6" fill="#d6c08a"/><path d="M0,1.5 H14 M0,4.5 H14" stroke="#bfa56a" stroke-width=".7"/></pattern>
+    <linearGradient id="goldF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3dc8e"/><stop offset=".5" stop-color="#d4b05a"/><stop offset="1" stop-color="#9c7a2a"/></linearGradient>
+    <pattern id="cigarLeaf" width="22" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(-24)"><rect width="22" height="24" fill="#6b4226"/><path d="M0,6 H22 M0,15 H22" stroke="#553220" stroke-width="1.4"/><path d="M0,10 H22" stroke="#7d5232" stroke-width=".8"/></pattern>
+    <linearGradient id="cigarBand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4a63a"/><stop offset=".3" stop-color="#b3261e"/><stop offset=".7" stop-color="#b3261e"/><stop offset="1" stop-color="#d4a63a"/></linearGradient>
     <pattern id="batik" width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(18)">
       <rect width="56" height="56" fill="#1b3a6b"/>
       <g transform="translate(28 28)" fill="#e8b84a">${[0, 60, 120, 180, 240, 300].map((a) => `<ellipse rx="4" ry="10" transform="rotate(${a}) translate(0 -10)"/>`).join('')}<circle r="4.5" fill="#c4342d"/></g>
@@ -230,15 +139,23 @@ function frontSvg() {
       <ellipse rx="76" ry="20" fill="#9aa3a8"/><ellipse rx="58" ry="13" fill="#5e666b"/>
       <g id="butts"></g>
     </g>
-    <g id="pack" transform="translate(310 905)" opacity="0">
-      <rect x="0" y="-62" width="58" height="70" rx="4" fill="#f4f1ea"/><rect x="0" y="-62" width="58" height="26" rx="4" fill="#b3261e"/>
-      <text x="29" y="-12" class="packtxt" id="packTxt">+0</text>
+    <g id="pack" transform="translate(290 912) rotate(-6)">
+      <rect x="2" y="-94" width="68" height="96" rx="5" fill="#000" opacity=".18" transform="translate(4 2)"/>
+      <rect x="0" y="-96" width="68" height="96" rx="5" id="pkBody"/>
+      <path d="M0,-91 Q0,-96 5,-96 H63 Q68,-96 68,-91 V-58 H0 Z" id="pkTop"/>
+      <text x="34" y="-80" class="pk-brand" id="pkBrand">JEREBU</text>
+      <text x="34" y="-66" class="pk-var" id="pkVar">KLASIK</text>
+      <rect x="6" y="-52" width="56" height="44" rx="2" class="pk-warn"/>
+      <text x="34" y="-37" class="pk-warn-t">AMARAN</text>
+      <text x="34" y="-25" class="pk-warn-s">UDARA INI</text>
+      <text x="34" y="-15" class="pk-warn-s">MEMBUNUH</text>
+      <g id="pkExtra" opacity="0"><circle cx="66" cy="-94" r="16" fill="#d62828"/><text x="66" y="-88.5" class="pk-extra" id="packTxt">+0</text></g>
     </g>
     <g id="mug" transform="translate(888 0)">
       <ellipse cx="0" cy="912" rx="40" ry="9" fill="#000" opacity=".12"/>
       <path d="M26,826 C58,826 60,880 24,884" class="mugHandle"/>
       <path d="M-32,792 L32,792 L27,910 L-27,910 Z" fill="url(#tea)"/>
-      <path d="M-32,792 L32,792 L27,910 L-27,910 Z" class="glass"/>
+      <path d="M-32,792 L32,792 L27,910 L-27,910 Z" class="glass-mug"/>
       <path d="M-24,800 L-20,902" stroke="#fff" stroke-width="5" opacity=".35" stroke-linecap="round"/>
     </g>
   </g>
@@ -263,14 +180,17 @@ function frontSvg() {
 export function createScene(stage) {
   const world = document.createElement('div');
   world.className = 'world';
-  world.innerHTML = `${backSvg()}<canvas class="layer" id="hazeCv" width="512" height="512"></canvas>${frontSvg()}
+  world.innerHTML = `${skySvg()}<div class="layer lands"></div>
+    <canvas class="layer" id="fxCv" width="512" height="512"></canvas>
+    <canvas class="layer" id="hazeCv" width="512" height="512"></canvas>${frontSvg()}
     <canvas class="layer" id="smokeCv" width="${W}" height="${W}"></canvas><div class="vig"></div>`;
   stage.prepend(world);
 
   const $ = (id) => world.querySelector('#' + id);
-  const [backEl, frontEl] = world.querySelectorAll('svg');
-  const hazeCv = $('hazeCv'), smokeCv = $('smokeCv');
-  const hctx = hazeCv.getContext('2d'), sctx = smokeCv.getContext('2d');
+  const skyEl = world.querySelector('.sky');
+  const landsEl = world.querySelector('.lands');
+  const hazeCv = $('hazeCv'), smokeCv = $('smokeCv'), fxCv = $('fxCv');
+  const hctx = hazeCv.getContext('2d'), sctx = smokeCv.getContext('2d'), fctx = fxCv.getContext('2d');
   // Reduced motion keeps the ambient smoke and haze but calms the hand and parallax.
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.3 : 1;
 
@@ -290,12 +210,13 @@ export function createScene(stage) {
   const cigs = [...Array(MAX_CIGS)].map((_, i) => {
     const slot = ORDER[i % 5], layer = Math.floor(i / 5);
     const el = $('cig' + i);
+    const q = (c) => el.querySelector(c);
     return {
       el, body: el.firstElementChild,
-      paper: el.querySelector(".cpaper"), ash: el.querySelector('.ash'),
-      glow: el.querySelector('.glow'), core: el.querySelector('.core'),
+      paper: q('.cpaper'), filter: q('.filter'), band: q('.band'), deco: q('.deco'), shade: q('.cshade'),
+      ash: q('.ash'), glow: q('.glow'), core: q('.core'),
       px: -48, py: SLOT_Y[slot] + layer * 3, a: SLOT_A[slot] + LAYER_A[layer] + (i % 2 ? 1.5 : -1.5),
-      L: 285, targetL: 0, slide: 300, phase: Math.random() * 6.28,
+      L: 285, targetL: 0, slide: 330, phase: Math.random() * 6.28,
       puff: 0, nextPuff: 1 + Math.random() * 6, visible: false,
     };
   });
@@ -323,8 +244,13 @@ export function createScene(stage) {
     g.fillRect(0, 0, size, size);
     return c;
   };
-  const smokeSprite = sprite('236,238,244');
+  let smokeSprite = sprite('236,238,244');
   const steamSprite = sprite('255,255,255');
+  const FX = {
+    chimney: { spr: sprite('168,168,172'), rate: 6, r: 9, grow: 20, life: 8, vy: -16, spread: 6, alpha: 0.32 },
+    cook: { spr: sprite('225,225,225'), rate: 3, r: 3, grow: 8, life: 4.5, vy: -12, spread: 3, alpha: 0.28 },
+    mist: { spr: sprite('255,255,255'), rate: 12, r: 10, grow: 18, life: 2.6, vy: -8, spread: 40, alpha: 0.3 },
+  };
   let hazeSprite = sprite('190,170,125', 128);
   let hazeTint = '';
 
@@ -335,33 +261,129 @@ export function createScene(stage) {
   };
   const particles = [];
   const steam = [];
+  const sparks = [];
+  const fxParts = [];
+  let emitters = [];
+  let brand = null;
+  let fEnd = 95, ashW = 11;
+
+  // ---------- backdrop ----------
+  const land = { far: null, mid: null };
+  const flyerG = $('flyer');
+  let flyer = FLYERS.plane, flyerKey = '', flyerLight = null;
+  let themeKey = null, themeSeed = null;
+
+  function setFlyer(k) {
+    if (k === flyerKey) return;
+    flyerKey = k;
+    flyer = FLYERS[k] || FLYERS.plane;
+    flyerG.innerHTML = flyer.svg;
+    flyerG.setAttribute('class', flyer.cls || '');
+    flyerLight = flyerG.querySelector('.planeLight');
+  }
+
+  function setTheme(key, seed) {
+    if (key === themeKey && seed === themeSeed) return;
+    themeKey = key;
+    themeSeed = seed;
+    const th = THEMES[key] || THEMES.kl;
+    const o = th.build(rng(seed));
+    const tmp = document.createElement('div');
+    tmp.innerHTML = landSvg(o);
+    const svg = tmp.firstElementChild;
+    const olds = [...landsEl.children];
+    if (olds.length) svg.classList.add('entering');
+    landsEl.appendChild(svg);
+    land.far = svg.querySelector('.far');
+    land.mid = svg.querySelector('.mid');
+    emitters = o.emitters || [];
+    fxParts.length = 0;
+    setFlyer(th.flyer);
+    applyLook();
+    if (olds.length) {
+      svg.getBoundingClientRect();
+      svg.classList.remove('entering');
+      setTimeout(() => olds.forEach((el) => el.remove()), 950);
+    }
+  }
+
+  // ---------- brand ----------
+  function setBrand(b) {
+    brand = b;
+    smokeSprite = sprite(b.smoke);
+    const w = b.w, y = (-w / 2).toFixed(1);
+    fEnd = 15 + b.fl;
+    ashW = Math.max(8, 11 * (w / 16));
+    const show = (el, on) => { el.style.display = on ? '' : 'none'; };
+    cigs.forEach((c) => {
+      for (const el of [c.paper, c.filter, c.band, c.deco, c.shade]) { el.setAttribute('y', y); el.setAttribute('height', w); }
+      c.paper.setAttribute('fill', b.paper);
+      show(c.filter, b.fl > 0);
+      c.filter.setAttribute('x', -fEnd);
+      c.filter.setAttribute('width', b.fl);
+      c.filter.setAttribute('fill', b.filter);
+      show(c.band, b.fl > 0 && b.band !== 'none');
+      c.band.setAttribute('x', -fEnd - 2);
+      c.band.setAttribute('width', 3);
+      c.band.setAttribute('fill', b.band);
+      show(c.deco, !!b.deco);
+      if (b.deco) {
+        c.deco.setAttribute('x', -fEnd - b.deco.at - b.deco.w);
+        c.deco.setAttribute('width', b.deco.w);
+        c.deco.setAttribute('fill', b.deco.fill);
+      }
+      c.ash.setAttribute('y', (-w / 2 + 0.5).toFixed(1));
+      c.ash.setAttribute('height', w - 1);
+      c.ash.setAttribute('width', ashW.toFixed(1));
+      c.ash.setAttribute('fill', b.ash);
+      c.glow.setAttribute('r', (22 * Math.max(0.8, w / 16)).toFixed(1));
+      c.core.setAttribute('r', (6.5 * (w / 16)).toFixed(1));
+    });
+    const p = b.pack;
+    $('pkBody').setAttribute('fill', p.body);
+    $('pkTop').setAttribute('fill', p.top);
+    $('pkBrand').setAttribute('fill', p.topInk);
+    $('pkVar').setAttribute('fill', p.topInk);
+    $('pkVar').textContent = b.ms.toUpperCase();
+    setTargets();
+    applyLook();
+  }
+
+  function setTargets() {
+    const fullL = brand ? brand.L : 285;
+    const full = Math.min(MAX_CIGS, Math.floor(state.cigs));
+    const frac = state.cigs - Math.floor(state.cigs);
+    cigs.forEach((c, i) => {
+      if (i < full) c.targetL = fullL;
+      else if (i === full && full < MAX_CIGS && frac > 0.04) c.targetL = 115 + frac * (fullL - 115);
+      else c.targetL = 0;
+    });
+  }
 
   // ---------- level / time updates ----------
   function applyLook() {
     const { h } = state;
     const sky = skyAt(state.hour);
     state.day = sky.day;
-    const hazeDay = '#c4ad7f', hazeNight = '#4d4236';
-    const hz = mix(hazeNight, hazeDay, sky.day);
+    const d = sky.day, n = 1 - d;
+    const hz = mix('#4d4236', '#c4ad7f', d);
     $('skyTop').setAttribute('stop-color', mix(sky.top, hz, h * 0.72));
     $('skyBot').setAttribute('stop-color', mix(sky.bot, hz, h * 0.9));
-    const hzFar = $('hazeFar'), hzMid = $('hazeMid');
     world.querySelectorAll('.hzc').forEach((st) => st.setAttribute('stop-color', hz));
-    hzFar.setAttribute('opacity', (0.05 + h * 0.8).toFixed(3));
-    hzMid.setAttribute('opacity', (h * 0.45).toFixed(3));
-    world.style.setProperty('--night', (1 - sky.day).toFixed(3));
-    world.style.setProperty('--clear', (1 - h).toFixed(3));
-    const d = sky.day;
-    world.style.setProperty('--b0', mix('#1a2340', '#6f7e99', d));
-    world.style.setProperty('--b1', mix('#202a47', '#7b8aa4', d));
-    world.style.setProperty('--b2', mix('#28334f', '#8897b0', d));
-    world.style.setProperty('--lm', mix('#2f3b5c', '#95a4bd', d));
-    world.style.setProperty('--arch', mix('#f2b75e', '#3b2b25', d));
-    world.style.setProperty('--roof', mix('#4a2219', '#8c3a28', d));
-    world.style.setProperty('--trunk', mix('#2e2418', '#6b5135', d));
-    world.style.setProperty('--frond', mix('#1b3020', '#3f7a3a', d));
-    FACADES.forEach((f, i) => world.style.setProperty('--f' + i, mix(f, '#161c38', (1 - d) * 0.62)));
-    backEl.style.filter = `blur(${(h * 1.8).toFixed(2)}px) saturate(${(1 - h * 0.35).toFixed(2)})`;
+    world.querySelectorAll('.hazeFar').forEach((el) => el.setAttribute('opacity', (0.05 + h * 0.8).toFixed(3)));
+    world.querySelectorAll('.hazeMid').forEach((el) => el.setAttribute('opacity', (h * 0.45).toFixed(3)));
+
+    const css = world.style;
+    css.setProperty('--night', n.toFixed(3));
+    css.setProperty('--clear', (1 - h).toFixed(3));
+    for (const k in PALETTE) css.setProperty(k, mix(PALETTE[k][1], PALETTE[k][0], d));
+    for (const k in ACCENTS) css.setProperty('--ac-' + k, mix(ACCENTS[k], '#141a33', n * 0.62));
+    FACADES.forEach((c, i) => css.setProperty('--f' + i, mix(c, '#161c38', n * 0.62)));
+    css.setProperty('--wt', mix(mix(sky.bot, '#3f7895', 0.45), hz, h * 0.6));
+    css.setProperty('--wb', mix(mix('#21587a', '#0a1630', n), hz, h * 0.4));
+    const filter = `blur(${(h * 1.8).toFixed(2)}px) saturate(${(1 - h * 0.35).toFixed(2)})`;
+    skyEl.style.filter = filter;
+    landsEl.style.filter = filter;
 
     // sun / moon on an arc
     const hr24 = state.hour;
@@ -383,16 +405,17 @@ export function createScene(stage) {
     }
     hazeCv.style.opacity = (h * 0.95).toFixed(3);
 
-    // ashtray butts and the overflow pack
+    // ashtray butts and the overflow badge on the pack
+    const sol = brand ? brand.solid : { paper: '#efe9dc', filter: '#d68c3d' };
     const butts = Math.min(9, Math.floor(state.cigs * 0.8));
     let b = '';
     for (let i = 0; i < butts; i++) {
       const bx = -40 + ((i * 37) % 80), by = -4 + ((i * 13) % 9), ang = -30 + ((i * 47) % 70);
-      b += `<g transform="translate(${bx} ${by}) rotate(${ang})"><rect x="-14" y="-3" width="20" height="6" rx="2" fill="#d68c3d"/><rect x="6" y="-3" width="6" height="6" rx="2" fill="#efe9dc"/><rect x="11" y="-3" width="3" height="6" fill="#55504a"/></g>`;
+      b += `<g transform="translate(${bx} ${by}) rotate(${ang})"><rect x="-14" y="-3" width="20" height="6" rx="2" fill="${sol.filter}"/><rect x="6" y="-3" width="6" height="6" rx="2" fill="${sol.paper}"/><rect x="11" y="-3" width="3" height="6" fill="#55504a"/></g>`;
     }
     $('butts').innerHTML = b;
     const extra = Math.max(0, Math.round(state.cigs) - MAX_CIGS);
-    $('pack').setAttribute('opacity', extra > 0 ? 1 : 0);
+    $('pkExtra').setAttribute('opacity', extra > 0 ? 1 : 0);
     $('packTxt').textContent = '+' + extra;
   }
 
@@ -400,13 +423,7 @@ export function createScene(stage) {
     state.api = api;
     state.cigs = cigCount;
     state.h = clamp(Math.pow(clamp((api - 15) / 240, 0, 1.15), 0.85), 0, 1.1);
-    const full = Math.min(MAX_CIGS, Math.floor(cigCount));
-    const frac = cigCount - Math.floor(cigCount);
-    cigs.forEach((c, i) => {
-      if (i < full) c.targetL = 285;
-      else if (i === full && full < MAX_CIGS && frac > 0.04) c.targetL = 115 + frac * 170;
-      else c.targetL = 0;
-    });
+    setTargets();
     applyLook();
   }
 
@@ -441,7 +458,7 @@ export function createScene(stage) {
 
   // ---------- animation loop ----------
   const RIG = { x: 492, y: 772, s: 1.12 };
-  const farG = $('far'), midG = $('mid'), rigG = $('rig'), planeG = $('plane');
+  const rigG = $('rig');
   let last = performance.now(), t = 0, running = true;
 
   function rigPoint(lx, ly, sway, ox, oy) {
@@ -450,17 +467,38 @@ export function createScene(stage) {
     return [x * cs - y * sn + RIG.x + ox, x * sn + y * cs + RIG.y + oy];
   }
 
+  function stepParticles(ctx, arr, spr, alpha, grow, wind, scale = 1) {
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const p = arr[i];
+      p.life += dtNow;
+      if (p.life > p.max) { arr.splice(i, 1); continue; }
+      const k = p.life / p.max;
+      p.vx += (Math.sin(t * 1.4 + p.seed + p.life * 1.7) * 10 + wind * 14) * dtNow;
+      p.vy -= 3 * dtNow;
+      p.x += p.vx * dtNow;
+      p.y += p.vy * dtNow;
+      p.r += (p.grow ?? grow) * dtNow * (1 - k * 0.5);
+      ctx.globalAlpha = (p.alpha ?? alpha) * Math.pow(1 - k, 1.6) * Math.min(1, p.life * 3);
+      ctx.drawImage(p.spr || spr, (p.x - p.r) * scale, (p.y - p.r) * scale, p.r * 2 * scale, p.r * 2 * scale);
+    }
+  }
+  let dtNow = 0;
+
   function frame(now) {
     if (!running) return;
     const dt = Math.min(0.05, (now - last) / 1000);
+    dtNow = dt;
     last = now;
     t += dt;
 
     // parallax
     state.px = lerp(state.px, state.tx * calm, 0.04);
     state.py = lerp(state.py, state.ty * calm, 0.04);
-    farG.setAttribute('transform', `translate(${(-state.px * 6).toFixed(2)} ${(-state.py * 3).toFixed(2)})`);
-    midG.setAttribute('transform', `translate(${(-state.px * 14).toFixed(2)} ${(-state.py * 5).toFixed(2)})`);
+    const fx = -state.px * 6, fy = -state.py * 3;
+    if (land.far) {
+      land.far.setAttribute('transform', `translate(${fx.toFixed(2)} ${fy.toFixed(2)})`);
+      land.mid.setAttribute('transform', `translate(${(-state.px * 14).toFixed(2)} ${(-state.py * 5).toFixed(2)})`);
+    }
 
     // hand sway, a little heavier when holding more
     const load = clamp(state.cigs / 10, 0, 1);
@@ -470,26 +508,26 @@ export function createScene(stage) {
     const ox = state.px * 22, oy = state.py * 10 + bob + state.drop;
     rigG.setAttribute('transform', `translate(${(RIG.x + ox).toFixed(2)} ${(RIG.y + oy).toFixed(2)}) rotate(${sway.toFixed(3)}) scale(${RIG.s})`);
 
-    // plane crossing every ~50 s
-    const pc = (t % 50) / 50;
+    // something crossing the sky now and then
+    const pc = (t % flyer.period) / flyer.period;
     if (pc < 0.7) {
       const p = pc / 0.7;
-      planeG.style.display = '';
-      planeG.setAttribute('transform', `translate(${(-80 + p * 1200).toFixed(1)} ${(170 - p * 60).toFixed(1)}) scale(.8)`);
-      planeG.querySelector('.planeLight').setAttribute('opacity', Math.sin(t * 9) > 0.6 ? 1 : 0.15);
-    } else planeG.style.display = 'none';
+      flyerG.style.display = '';
+      flyerG.setAttribute('transform', `translate(${(-80 + p * 1200).toFixed(1)} ${(flyer.y0 + (flyer.y1 - flyer.y0) * p).toFixed(1)}) scale(${flyer.s})`);
+      if (flyerLight) flyerLight.setAttribute('opacity', Math.sin(t * 9) > 0.6 ? 1 : 0.15);
+    } else flyerG.style.display = 'none';
 
     // cigarettes: length + slide tweening, ember flicker, smoke emission
     const wind = 0.35 + 0.25 * Math.sin(t * 0.21);
+    const smokeMul = brand?.smokeMul || 1;
     cigs.forEach((c) => {
-      const want = c.targetL > 0;
-      if (want) {
+      if (c.targetL > 0) {
         c.L = lerp(c.L, c.targetL, 0.06);
         c.slide = lerp(c.slide, 0, 0.07);
       } else {
-        c.slide = lerp(c.slide, c.L + 20, 0.07);
+        c.slide = lerp(c.slide, c.L + 30, 0.07);
       }
-      const vis = c.slide < c.L + 10;
+      const vis = c.slide < c.L + 20;
       if (vis !== c.visible) {
         c.el.style.display = vis ? '' : 'none';
         c.visible = vis;
@@ -497,10 +535,12 @@ export function createScene(stage) {
       if (!vis) return;
       const L = c.L;
       c.paper.setAttribute('x', (-L).toFixed(1));
-      c.paper.setAttribute('width', Math.max(0, L - 95).toFixed(1));
-      c.ash.setAttribute('x', (-L - 9).toFixed(1));
-      c.glow.setAttribute('cx', (-L - 7).toFixed(1));
-      c.core.setAttribute('cx', (-L - 6).toFixed(1));
+      c.paper.setAttribute('width', Math.max(0, L - fEnd).toFixed(1));
+      c.shade.setAttribute('x', (-L).toFixed(1));
+      c.shade.setAttribute('width', Math.max(0, L - 15).toFixed(1));
+      c.ash.setAttribute('x', (-L - ashW + 2).toFixed(1));
+      c.glow.setAttribute('cx', (-L - ashW * 0.6).toFixed(1));
+      c.core.setAttribute('cx', (-L - ashW * 0.55).toFixed(1));
       c.body.setAttribute('transform', `translate(${c.slide.toFixed(1)} 0)`);
 
       c.nextPuff -= dt;
@@ -510,44 +550,56 @@ export function createScene(stage) {
       c.glow.setAttribute('opacity', e.toFixed(3));
       c.core.setAttribute('fill', mix('#a8321a', '#ffd166', e));
 
-      // smoke from the tip
+      // smoke (and kretek crackle) from the tip
       if (c.slide < 30 && state.drop < 60) {
         const rad = (c.a * Math.PI) / 180;
-        const tx = -(L + 9) + c.slide;
+        const tx = -(L + ashW) + c.slide;
         const [wx, wy] = rigPoint(c.px + tx * Math.cos(rad), c.py + tx * Math.sin(rad), sway, ox, oy);
-        const rate = 11 + c.puff * 30;
-        if (Math.random() < rate * dt && particles.length < 520) {
-          particles.push({ x: wx, y: wy, vx: (Math.random() - 0.5) * 6, vy: -18 - Math.random() * 14, r: 4 + Math.random() * 3, life: 0, max: 4.5 + Math.random() * 3, seed: Math.random() * 10 });
+        const rate = (11 + c.puff * 30) * smokeMul;
+        if (Math.random() < rate * dt && particles.length < 560) {
+          particles.push({ x: wx, y: wy, vx: (Math.random() - 0.5) * 6, vy: -18 - Math.random() * 14, r: (4 + Math.random() * 3) * (brand ? brand.w / 16 : 1), life: 0, max: 4.5 + Math.random() * 3, seed: Math.random() * 10 });
+        }
+        if (brand?.sparks && c.puff > 0.6 && Math.random() < 14 * dt) {
+          sparks.push({ x: wx, y: wy, vx: (Math.random() - 0.5) * 70, vy: -20 - Math.random() * 50, life: 0, max: 0.4 + Math.random() * 0.5 });
         }
       }
     });
 
-    // tea steam
+    // tea steam + backdrop emitters (chimneys, kitchen smoke, waterfall mist)
     if (Math.random() < 5 * dt && steam.length < 60) {
       steam.push({ x: 888 + (Math.random() - 0.5) * 34, y: 792, vx: 0, vy: -12 - Math.random() * 8, r: 5, life: 0, max: 3 + Math.random() * 2, seed: Math.random() * 10 });
     }
-
-    // draw smoke + steam
-    sctx.clearRect(0, 0, W, W);
-    const drawSet = (arr, spr, alpha, grow) => {
-      for (let i = arr.length - 1; i >= 0; i--) {
-        const p = arr[i];
-        p.life += dt;
-        if (p.life > p.max) { arr.splice(i, 1); continue; }
-        const k = p.life / p.max;
-        p.vx += (Math.sin(t * 1.4 + p.seed + p.life * 1.7) * 10 + wind * 14) * dt;
-        p.vy -= 3 * dt;
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.r += grow * dt * (1 - k * 0.5);
-        const a = alpha * Math.pow(1 - k, 1.6) * Math.min(1, p.life * 3);
-        sctx.globalAlpha = a;
-        sctx.drawImage(spr, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+    for (const em of emitters) {
+      const k = FX[em.kind];
+      if (k && Math.random() < k.rate * dt && fxParts.length < 260) {
+        fxParts.push({ x: em.x + fx + (Math.random() - 0.5) * k.spread, y: em.y + fy, vx: (Math.random() - 0.5) * 6, vy: k.vy * (0.7 + Math.random() * 0.6), r: k.r, grow: k.grow, alpha: k.alpha, spr: k.spr, life: 0, max: k.life * (0.7 + Math.random() * 0.6), seed: Math.random() * 10 });
       }
-    };
-    drawSet(particles, smokeSprite, 0.5, 15);
-    drawSet(steam, steamSprite, 0.22, 9);
+    }
+
+    // draw smoke, steam, sparks
+    sctx.clearRect(0, 0, W, W);
+    stepParticles(sctx, particles, smokeSprite, 0.5, 15, wind);
+    stepParticles(sctx, steam, steamSprite, 0.22, 9, wind);
+    if (sparks.length) {
+      sctx.globalCompositeOperation = 'lighter';
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.life += dt;
+        if (s.life > s.max) { sparks.splice(i, 1); continue; }
+        s.vy += 90 * dt;
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        sctx.globalAlpha = 1 - s.life / s.max;
+        sctx.fillStyle = '#ffb347';
+        sctx.fillRect(s.x - 1.5, s.y - 1.5, 3, 3);
+      }
+      sctx.globalCompositeOperation = 'source-over';
+    }
     sctx.globalAlpha = 1;
+
+    fctx.clearRect(0, 0, 512, 512);
+    if (fxParts.length) stepParticles(fctx, fxParts, null, 0.3, 15, wind, 0.5);
+    fctx.globalAlpha = 1;
 
     // drifting haze
     hctx.clearRect(0, 0, 512, 512);
@@ -575,10 +627,11 @@ export function createScene(stage) {
   function setPaused(p) { paused = p; syncRunning(); }
   setInterval(() => setHour(malaysiaHour()), 60_000);
 
+  setTheme('kl', 1);
   applyLook();
   requestAnimationFrame(frame);
   // lower the cigarette hand while the map is held up
   function setMapMode(on) { state.dropTo = on ? 560 : 0; }
 
-  return { setLevel, setHour, setPaused, setMapMode, isPaused: () => paused, state };
+  return { setLevel, setHour, setTheme, setBrand, setPaused, setMapMode, isPaused: () => paused, state };
 }

@@ -7,10 +7,19 @@ A Malaysian take on [SecondHand](https://secondhand.sangsara.net) (Singapore).
 
 ## What's on the page
 
-- **Animated scene.** A KL skyline (Petronas Twin Towers, Merdeka 118, KL Tower) seen from a mamak table.
-  The hand holds today's number of cigarettes, each with a glowing tip and rising smoke. Haze thickens and the skyline
-  fades as the API climbs, the sky follows the actual time in Malaysia, palm trees sway and a plane
-  crosses now and then.
+- **Animated scene.** The view from a mamak table. The hand holds today's number of cigarettes, each with a
+  glowing tip and rising smoke. Haze thickens and the backdrop fades as the API climbs, and the sky follows the
+  actual time in Malaysia.
+- **A backdrop for every city.** About 35 scenes built in code, crossfading as you switch city. Examples:
+  Petronas & Merdeka 118 (KL), Blue Mosque (Shah Alam), Putra Mosque on the lake (Putrajaya), Komtar and Penang Hill,
+  Penang Bridge, Ipoh station and limestone hills, Christ Church and the windmill (Melaka), Mount Kinabalu and a water
+  village (KK), the DUN building on the Sarawak River (Kuching), Crystal Mosque (Kuala Terengganu), wau kites (Kota Bharu),
+  paddy fields and Gunung Jerai (Kedah), the Mat Cincang cable car (Langkawi), plus ports, refineries, rainforest,
+  longhouses, beaches and kampung. Boats bob, ships and cars move, kites sway, chimneys smoke, and fireflies and
+  lighthouse beams come out at night. Planes, eagles, hornbills or egrets fly by depending on the place.
+- **Brand picker.** Eight cigarette styles under the site's own parody house brand (Classic, Red, Menthol, Kretek with
+  crackling sparks, Nipah leaf, Gold slim, Black, Cigar). They restyle the sticks, the butts in the ashtray, and the
+  "Jerebu" pack on the table. No real tobacco brands are used, since Malaysia bans promoting smoking products.
 - **State → city.** Pick any of the 16 states and federal territories, then a city within it. Stations are grouped
   into the cities people know (e.g. Tasek Ipoh + Pegoh Ipoh → Ipoh), biggest city first, or you can view the state average.
 - **Hold the map.** Hold the *Hold* button (or the `M` key) to see a paper map of Malaysia with every station
@@ -36,7 +45,9 @@ There is no build step: plain HTML, CSS and ES modules, plus two Vercel serverle
 
 ```
 index.html, css/, js/       static site
-  js/scene.js               animated SVG and canvas scene
+  js/scene.js               animated SVG and canvas scene (sky, hand, smoke, haze)
+  js/themes.js              city backdrops + city → theme mapping
+  js/brands.js              cigarette styles for the brand picker
   js/map.js                 paper map overlay (Natural Earth outline, Mercator)
   js/aqi.js                 API → PM2.5 → cigarettes, bands, states, city grouping
   js/app.js                 data loading, UI, i18n

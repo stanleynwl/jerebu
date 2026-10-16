@@ -19,6 +19,7 @@
 <body>
   <main class="wrap">
     <div class="stage" id="stage">
+      <div class="loc" id="loc" aria-live="polite"><b id="locCity"></b><span id="locNote"></span></div>
       <span class="srcbadge" id="srcBadge" hidden></span>
       <button type="button" class="pausebtn" id="pausebtn" aria-pressed="false" aria-label="Pause animation" title="Pause / play animation">
         <svg class="i-pause" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor"/></svg>
@@ -52,6 +53,11 @@
       <fieldset class="seg seg-city" id="cities">
         <legend data-i18n="cityLegend">City</legend>
         <div class="chips" id="cityChips"></div>
+      </fieldset>
+
+      <fieldset class="seg seg-brand">
+        <legend data-i18n="brandLegend">Brand</legend>
+        <div class="chips" id="brandChips"></div>
       </fieldset>
 
       <div class="stats">
