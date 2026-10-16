@@ -132,7 +132,7 @@ button { font: inherit; color: inherit; }
 .jg1 { fill: var(--jg1); }
 .jg2 { fill: var(--jg2); }
 .branch { stroke: var(--trunk); stroke-width: 9; fill: none; stroke-linecap: round; }
-.mist { fill: #fff; opacity: 0.22; animation: drift linear infinite; }
+.mist { fill: #fff; opacity: calc(0.22 - var(--night, 0) * 0.15); animation: drift linear infinite; }
 @keyframes drift { from { transform: translateX(-120px); } 50% { transform: translateX(120px); } to { transform: translateX(-120px); } }
 .concrete { fill: var(--concrete); }
 .concrete-dk { fill: var(--concrete-dk); }
@@ -153,6 +153,15 @@ button { font: inherit; color: inherit; }
 .ruin { stroke: var(--b0); stroke-width: 4; fill: none; }
 .sail-cloth { fill: var(--ac-cream); opacity: 0.9; }
 .refl { opacity: 0.22; }
+.wall { fill: var(--ac-white); }
+.corn { fill: var(--ac-cream); }
+.dome { fill: var(--ac-white); stroke: #000; stroke-opacity: 0.1; }
+.finial { stroke: var(--ac-gold); stroke-width: 2.5; }
+.shade { fill: #000; opacity: 0.07; }
+.mow { fill: #fff; opacity: 0.06; }
+.lamp-post { fill: var(--hull); }
+.flag { animation: flagwave 2.2s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: left center; }
+@keyframes flagwave { from { transform: skewY(-5deg) scaleX(1); } to { transform: skewY(4deg) scaleX(0.9); } }
 .glass { fill: #5fa9c9; fill-opacity: 0.92; stroke: #e8fbff; stroke-width: 1.4; }
 .glass-line { stroke: #e8fbff; stroke-opacity: 0.6; }
 .crystal-glow { fill: #6ad7ff; opacity: calc(var(--night, 0) * 0.28); mix-blend-mode: screen; }

@@ -430,14 +430,87 @@ const abuBakarMosque = () => `
   <rect x="-30" y="-124" width="60" height="22" fill="var(--ac-white)"/><path d="M-34,-124 Q0,-170 34,-124 Z" fill="var(--ac-blue)"/>
   ${[-100, -70, -40, 30, 60, 90].map((x) => `<path d="M${x},0 V-36 Q${x + 6},-46 ${x + 12},-36 V0 Z" class="arch"/>`).join('')}`;
 
-const ipohStation = () => `
-  <rect x="-260" y="-110" width="520" height="110" fill="var(--ac-white)"/>
-  ${Array.from({ length: 16 }, (_, i) => -250 + i * 32).map((x) => `<path d="M${x},0 V-40 Q${x + 12},-58 ${x + 24},-40 V0 Z" class="arch"/>`).join('')}
-  ${Array.from({ length: 16 }, (_, i) => -250 + i * 32).map((x) => `<rect x="${x + 6}" y="-92" width="12" height="22" class="shwin"/>`).join('')}
-  <rect x="-60" y="-150" width="120" height="40" fill="var(--ac-white)"/>
-  <path d="M-46,-150 C-50,-190 -18,-214 0,-222 C18,-214 50,-190 46,-150 Z" fill="var(--ac-white)"/>
-  ${[-240, -150, 150, 240].map((x) => `<rect x="${x - 12}" y="-140" width="24" height="30" fill="var(--ac-white)"/><path d="M${x - 14},-140 Q${x},-170 ${x + 14},-140 Z" fill="var(--ac-white)"/>`).join('')}
-  <path d="M-260,-110 L260,-110" stroke="var(--ac-cream)" stroke-width="4"/>`;
+// Ipoh Railway Station, front elevation: a long white neo-Moorish block with
+// arcaded verandahs, five pavilions, a big central onion dome, turrets and
+// chhatris. Drawn 1000 wide, centred on x=0, standing on y=0.
+const ipohStation = () => {
+  const onion = (cx, y, w, h) => `<path d="M${f(cx - w / 2)},${f(y)} C${f(cx - w * 0.62)},${f(y - h * 0.45)} ${f(cx - w * 0.2)},${f(y - h * 0.82)} ${f(cx)},${f(y - h)} C${f(cx + w * 0.2)},${f(y - h * 0.82)} ${f(cx + w * 0.62)},${f(y - h * 0.45)} ${f(cx + w / 2)},${f(y)} Z" class="dome"/>
+    <path d="M${f(cx)},${f(y - h)} V${f(y - h * 1.24)}" class="finial"/>`;
+  const arches = (x0, x1, y0, y1, aw, gap, cls = 'arch') => {
+    const n = Math.max(1, Math.floor((x1 - x0 + gap) / (aw + gap)));
+    const pad = (x1 - x0 - (n * aw + (n - 1) * gap)) / 2;
+    const hg = y0 - y1;
+    let out = '';
+    for (let i = 0; i < n; i++) {
+      const x = x0 + pad + i * (aw + gap);
+      out += `<path d="M${f(x)},${f(y0)} V${f(y1 + hg * 0.38)} Q${f(x)},${f(y1 + hg * 0.1)} ${f(x + aw / 2)},${f(y1)} Q${f(x + aw)},${f(y1 + hg * 0.1)} ${f(x + aw)},${f(y1 + hg * 0.38)} V${f(y0)} Z" class="${cls}"/>`;
+    }
+    return out;
+  };
+  const merlons = (x0, x1, y) => {
+    let out = '';
+    for (let x = x0 + 3; x < x1 - 6; x += 13) out += `<rect x="${f(x)}" y="${y - 7}" width="6" height="7" class="wall"/>`;
+    return out;
+  };
+  const turret = (cx, base, h, w = 13) => `<rect x="${f(cx - w / 2)}" y="${base - h}" width="${w}" height="${h}" class="wall"/>
+    <rect x="${f(cx - w / 2 - 2)}" y="${base - h}" width="${w + 4}" height="4" class="corn"/>
+    <rect x="${f(cx - w / 2 - 2)}" y="${f(base - h * 0.5)}" width="${w + 4}" height="3" class="corn"/>
+    <rect x="${f(cx - 2)}" y="${f(base - h * 0.85)}" width="4" height="${f(h * 0.22)}" class="kwin"/>
+    ${onion(cx, base - h, w + 5, w * 1.7)}`;
+  const chhatri = (cx, base, w) => {
+    const ph = w * 0.8;
+    return `<rect x="${f(cx - w / 2 - 4)}" y="${base - 5}" width="${w + 8}" height="5" class="corn"/>
+      <rect x="${f(cx - w / 2)}" y="${f(base - 5 - ph)}" width="${w}" height="${f(ph)}" class="wall"/>
+      ${arches(cx - w / 2 + 4, cx + w / 2 - 4, base - 5, base - 5 - ph * 0.85, w - 8, 0)}
+      <rect x="${f(cx - w / 2 - 4)}" y="${f(base - 10 - ph)}" width="${w + 8}" height="5" class="corn"/>
+      ${onion(cx, base - 10 - ph, w + 2, w * 0.95)}`;
+  };
+  // a two-storey section: verandah arches below, arched windows above
+  const block = (x0, x1, top, big = false) => `
+    <rect x="${x0}" y="${top}" width="${x1 - x0}" height="${-top}" class="wall"/>
+    ${arches(x0 + 6, x1 - 6, 0, -70, big ? 30 : 22, big ? 10 : 9)}
+    <rect x="${x0 - 2}" y="-84" width="${x1 - x0 + 4}" height="7" class="corn"/>
+    ${arches(x0 + 10, x1 - 10, -96, -140, 13, 18, 'kwin')}
+    <rect x="${x0 - 2}" y="-152" width="${x1 - x0 + 4}" height="6" class="corn"/>
+    <rect x="${x0 - 3}" y="${top}" width="${x1 - x0 + 6}" height="5" class="corn"/>
+    ${merlons(x0, x1, top)}`;
+  const pavilion = (x0, x1, top) => `${block(x0, x1, top, true)}
+    ${arches(x0 + 14, x1 - 14, -164, top + 14, 14, 16, 'kwin')}
+    <rect x="${f(x0 + (x1 - x0) * 0.68)}" y="${top}" width="${f((x1 - x0) * 0.32)}" height="${-top}" class="shade"/>`;
+
+  const wings = [[-410, -305], [-195, -85], [85, 195], [305, 410]].map(([a, b]) => block(a, b, -172)).join('');
+  const ends = [[-500, -410], [410, 500]].map(([a, b]) =>
+    pavilion(a, b, -205) + turret(a + 6, -205, 58) + turret(b - 6, -205, 58) + chhatri((a + b) / 2, -205, 40)).join('');
+  const mids = [[-305, -195], [195, 305]].map(([a, b]) => {
+    const c = (a + b) / 2;
+    return pavilion(a, b, -218) + turret(a + 6, -218, 46, 11) + turret(b - 6, -218, 46, 11)
+      + `<rect x="${c - 30}" y="-244" width="60" height="26" class="wall"/>${arches(c - 24, c + 24, -220, -240, 9, 6, 'kwin')}<rect x="${c - 33}" y="-247" width="66" height="5" class="corn"/>`
+      + onion(c, -247, 64, 66);
+  }).join('');
+  const centre = `${pavilion(-85, 85, -240)}
+    <path d="M-36,0 V-80 Q-36,-118 0,-128 Q36,-118 36,-80 V0 Z" class="arch"/>
+    <rect x="-62" y="-282" width="124" height="42" class="wall"/>
+    ${arches(-54, 54, -246, -276, 12, 8, 'kwin')}
+    <rect x="-66" y="-286" width="132" height="6" class="corn"/>
+    ${onion(0, -286, 138, 128)}
+    <path d="M-40,-300 Q-30,-370 0,-404" stroke="#fff" stroke-opacity=".35" stroke-width="3" fill="none"/>
+    ${turret(-80, -240, 74, 15)}${turret(80, -240, 74, 15)}`;
+  return `<rect x="-512" y="0" width="1024" height="10" class="corn"/>${wings}${ends}${mids}${centre}`;
+};
+
+// Malaysia's flag, waving from its hoist edge at (0,0)
+function jalurGemilang() {
+  let stripes = '';
+  for (let i = 0; i < 14; i++) stripes += `<rect x="0" y="${i * 3}" width="72" height="3.1" fill="var(--ac-${i % 2 ? 'white' : 'red'})"/>`;
+  let star = '';
+  for (let i = 0; i < 28; i++) {
+    const a = (i * Math.PI) / 14 - Math.PI / 2, rr = i % 2 ? 2.2 : 5.4;
+    star += `${f(25 + Math.cos(a) * rr)},${f(12 + Math.sin(a) * rr)} `;
+  }
+  return `<g class="flag">${stripes}<rect x="0" y="0" width="36" height="24" fill="var(--ac-navy)"/>
+    <circle cx="12" cy="12" r="8" fill="var(--ac-yellow)"/><circle cx="15" cy="12" r="6.8" fill="var(--ac-navy)"/>
+    <polygon points="${star}" fill="var(--ac-yellow)"/></g>`;
+}
 
 const zahirMosque = () => `<rect x="-110" y="-60" width="220" height="60" fill="var(--ac-white)"/>
   ${[-80, 0, 80].map((x, i) => `<rect x="${x - 26}" y="-76" width="52" height="16" fill="var(--ac-white)"/><path d="M${x - 26},-76 C${x - 30},${i === 1 ? -126 : -110} ${x + 30},${i === 1 ? -126 : -110} ${x + 26},-76 Z" fill="var(--ac-black)"/>`).join('')}
@@ -598,16 +671,28 @@ export const THEMES = {
       mid: boats(r, 850, 890, 3) + grass(892),
     };
   }),
-  ipoh: T('Ipoh Railway Station', 'Stesen Kereta Api Ipoh', 'plane', (r) => {
-    let karst = '';
-    for (let x = -40; x < W + 60; x += 110 + r() * 90) {
-      const w = 70 + r() * 70, h = 170 + r() * 170;
-      karst += `<path d="M${f(x - w)},${HZ + 4} C${f(x - w * 1.05)},${f(HZ - h * 0.6)} ${f(x - w * 0.8)},${f(HZ - h)} ${f(x)},${f(HZ - h)} C${f(x + w * 0.8)},${f(HZ - h)} ${f(x + w * 1.05)},${f(HZ - h * 0.6)} ${f(x + w)},${HZ + 4} Z" class="karst"/>
-        <path d="M${f(x - w * 0.3)},${f(HZ - h * 0.85)} V${HZ} M${f(x + w * 0.25)},${f(HZ - h * 0.8)} V${HZ}" class="karst-streak"/>`;
+  ipoh: T('Ipoh Railway Station', 'Stesen Kereta Api Ipoh', 'birds', (r) => {
+    // limestone karst framing the station, tallest at the sides
+    const karst = [[60, 120, 340], [250, 90, 250], [470, 110, 230], [700, 100, 260], [930, 130, 320]].map(([x, w, h]) =>
+      `<path d="M${x - w},${HZ + 40} C${f(x - w * 1.05)},${f(HZ - h * 0.6)} ${f(x - w * 0.8)},${HZ - h} ${x},${HZ - h} C${f(x + w * 0.8)},${HZ - h} ${f(x + w * 1.05)},${f(HZ - h * 0.6)} ${x + w},${HZ + 40} Z" class="karst"/>
+       <path d="M${f(x - w * 0.35)},${f(HZ - h * 0.85)} V${HZ} M${f(x + w * 0.3)},${f(HZ - h * 0.8)} V${HZ} M${x},${HZ - h + 20} V${f(HZ - h * 0.5)}" class="karst-streak"/>`).join('');
+    let mow = '';
+    for (let y = 792, k = 0; y < GND; k++) {
+      const h = 6 + (y - 792) * 0.12;
+      if (k % 2) mow += `<rect x="-60" y="${f(y)}" width="${W + 120}" height="${f(h)}" class="mow"/>`;
+      y += h;
     }
+    const lamp = (x) => `<rect x="${x - 2}" y="742" width="4" height="70" class="lamp-post"/><rect x="${x - 7}" y="726" width="14" height="18" rx="2" class="lamp-post"/>
+      <rect x="${x - 5}" y="729" width="10" height="12" class="lamp"/><path d="M${x - 9},726 L${x},716 L${x + 9},726 Z" class="lamp-post"/>`;
     return {
-      far: karst + city(r, { minH: 20, maxH: 80, ws: 0.7, wave: false }) + mist(r, HZ - 60, 3),
-      mid: shophouses(r, { x0: -30, x1: 380 }) + place(ipohStation(), 720, GND, 0.86) + palm(1000, GND, 0.85, true),
+      far: karst + mist(r, HZ - 230, 3) + place(ipohStation(), 512, 796, 0.98),
+      mid: `<rect x="-60" y="792" width="${W + 120}" height="${GND - 788}" class="grass"/>${mow}
+        <rect x="-60" y="786" width="${W + 120}" height="14" rx="7" class="jg1"/>`
+        + [40, 300, 700, 990].map((x) => `<ellipse cx="${x}" cy="${GND - 4}" rx="46" ry="18" class="jg2"/>`).join('')
+        + lamp(170) + lamp(790)
+        + `<rect x="858" y="556" width="4" height="${GND - 556}" class="lamp-post"/><circle cx="860" cy="554" r="4" fill="var(--ac-gold)"/>`
+        + place(jalurGemilang(), 862, 560)
+        + palm(-6, GND, 0.95),
     };
   }),
   taiping: T('Lake Gardens', 'Taman Tasik Taiping', 'birds', (r) => ({

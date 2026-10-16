@@ -56,7 +56,7 @@ const PALETTE = {
 };
 const ACCENTS = {
   red: '#c7372f', blue: '#2f6fb5', green: '#2f8f4e', orange: '#e07b2a', yellow: '#e9c23a', teal: '#2a9d8f', white: '#f1ede4',
-  pink: '#d98ca0', rose: '#efd6d6', gold: '#d4a63a', black: '#2a2a2e', brown: '#7a4a2a', cream: '#efe3c8',
+  pink: '#d98ca0', rose: '#efd6d6', gold: '#d4a63a', black: '#2a2a2e', brown: '#7a4a2a', cream: '#efe3c8', navy: '#0b2a6f',
 };
 
 // ---------- static SVG markup ----------
