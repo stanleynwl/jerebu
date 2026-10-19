@@ -26,7 +26,8 @@ export function createMap(stage, { onPick }) {
           <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="3"/></filter>
         </defs>
         <g class="m-grid">${grid}</g>
-        <g class="m-nb">${MAP.neighbours.map((n) => `<path d="${n.d}"/>`).join('')}</g>
+        <g class="m-nb">${MAP.neighbours.filter((n) => n.name !== 'Singapore').map((n) => `<path d="${n.d}"/>`).join('')}</g>
+        ${MAP.neighbours.filter((n) => n.name === 'Singapore').map((n) => `<path class="m-land" d="${n.d}"/>`).join('')}
         <path class="m-land" d="${MAP.malaysia}" filter="url(#rough)"/>
         <g class="m-stations"></g>
         <g class="m-labels"></g>

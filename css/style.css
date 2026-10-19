@@ -161,6 +161,26 @@ button { font: inherit; color: inherit; }
 .mow { fill: #fff; opacity: 0.06; }
 .lamp-post { fill: var(--hull); }
 .flag { animation: flagwave 2.2s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: left center; }
+.spin-slow { animation: spin 120s linear infinite; }
+.wheel { fill: none; stroke: var(--lm); stroke-width: 4; }
+.wheel.thin { stroke-width: 1.5; }
+.spokes line { stroke: var(--lm); stroke-width: 1; opacity: 0.7; }
+.jet { fill: none; stroke: #dff4ff; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 18 10; opacity: 0.85; animation: jet 0.6s linear infinite; }
+.jet.thin { stroke-width: 2.5; opacity: 0.6; }
+@keyframes jet { to { stroke-dashoffset: -28; } }
+.scales { fill: none; stroke: #000; stroke-opacity: 0.18; stroke-width: 1.4; }
+.st-trunk { fill: var(--ac-brown); }
+.st-crown { fill: var(--jg1); }
+.st-lines { stroke: var(--ac-brown); stroke-width: 1.5; fill: none; }
+.st-glow { fill: #ff5fd2; opacity: calc(var(--night, 0) * 0.75); }
+.blk { font: 700 9px var(--sans); fill: #fff; text-anchor: middle; letter-spacing: 0.08em; opacity: 0.85; }
+.hdb-dim { fill: #000; opacity: 0.12; }
+.pole { stroke: var(--wood-dk); stroke-width: 1.2; }
+.cloth { animation: cloth 2.4s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: top center; }
+@keyframes cloth { from { transform: skewX(-8deg); } to { transform: skewX(8deg); } }
+.mrt { animation: mrt 18s linear infinite; }
+@keyframes mrt { 0% { transform: translateX(-620px); } 45% { transform: translateX(1080px); } 100% { transform: translateX(1080px); } }
+.rail { stroke: var(--steel); stroke-width: 2.5; fill: none; }
 @keyframes flagwave { from { transform: skewY(-5deg) scaleX(1); } to { transform: skewY(4deg) scaleX(0.9); } }
 .glass { fill: #5fa9c9; fill-opacity: 0.92; stroke: #e8fbff; stroke-width: 1.4; }
 .glass-line { stroke: #e8fbff; stroke-opacity: 0.6; }

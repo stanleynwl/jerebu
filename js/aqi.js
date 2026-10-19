@@ -33,6 +33,8 @@ export const pm25ToApi = (pm) => lerpTable(Math.max(0, pm), BREAKS, 1, 0);
 // Berkeley Earth: breathing 22 µg/m³ of PM2.5 for a day ≈ smoking 1 cigarette.
 export const CIG_UGM3 = 22;
 export const apiToCigs = (api) => apiToPm25(api) / CIG_UGM3;
+// Singapore publishes the real 24 h PM2.5; use it when we have it
+export const cigsFor = (api, pm25) => (pm25 != null ? pm25 / CIG_UGM3 : api == null ? null : apiToCigs(api));
 export const cigsToApi = (c) => pm25ToApi(c * CIG_UGM3);
 
 // DOE category bands and the colours APIMS uses on its map.
@@ -69,7 +71,9 @@ export const STATES = [
   { id: 12, en: 'Sabah', map: 'SABAH', anchor: [117.0, 5.3], label: [900, 190], align: 'middle' },
   { id: 13, en: 'Sarawak', map: 'SARAWAK', anchor: [113.2, 2.5], label: [728, 300], align: 'middle' },
   { id: 15, en: 'Labuan', map: 'LABUAN', anchor: [115.23, 5.3], label: [744, 100], align: 'middle' },
+  { id: 99, en: 'Singapore', ms: 'Singapura', map: 'SINGAPORE', mapMs: 'SINGAPURA', anchor: [103.82, 1.35], label: [404, 410], align: 'start', sg: true },
 ];
+export const SG = 99;
 
 export const stateById = (id) => STATES.find((s) => s.id === id);
 
@@ -92,6 +96,7 @@ const CITY_TABLE = {
   12: [['Kota Kinabalu', ['CA50S', 'MCAQM003']], ['Sandakan', ['CA49S']], ['Tawau', ['CA48S']], ['Keningau', ['CA52S']], ['Kimanis', ['CA51S']]],
   13: [['Kuching', ['CA65Q']], ['Miri', ['CA56Q', 'CA55Q']], ['Sibu', ['CA61Q']], ['Bintulu', ['CA58Q']], ['Samarahan', ['CA64Q']], ['Serian', ['MCAQM002']], ['Sri Aman', ['CA63Q']], ['Sarikei', ['CA62Q']], ['Mukah', ['CA59Q']], ['Kapit', ['CA60Q']], ['Limbang', ['CA54Q']], ['Samalaju', ['CA57Q']]],
   15: [['Labuan', ['CA53L']]],
+  99: [['Central', ['SG-central'], 'Tengah'], ['North', ['SG-north'], 'Utara'], ['East', ['SG-east'], 'Timur'], ['West', ['SG-west'], 'Barat'], ['South', ['SG-south'], 'Selatan']],
 };
 
 // → [{ key, en, ms, stations: [...], api }] for one state, api = mean of live stations
@@ -109,6 +114,7 @@ export function citiesOf(stateId, stations) {
   for (const c of out) {
     const ok = c.stations.filter((s) => s.api != null);
     c.api = ok.length ? ok.reduce((a, s) => a + s.api, 0) / ok.length : null;
+    c.pm25 = ok.length && ok.every((s) => s.pm25 != null) ? ok.reduce((a, s) => a + s.pm25, 0) / ok.length : null;
   }
   return out;
 }

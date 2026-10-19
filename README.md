@@ -1,7 +1,8 @@
 # Jerebu 🇲🇾🚬
 
-**Malaysia's haze, in cigarettes.** Live Air Pollutant Index (API / IPU) readings from the
-Department of Environment, turned into "how many cigarettes is breathing this air for 24 hours".
+**Malaysia & Singapore haze, in cigarettes.** Live Air Pollutant Index (API / IPU) readings from Malaysia's
+Department of Environment and PSI / PM2.5 from Singapore's NEA, turned into "how many cigarettes is breathing
+this air for 24 hours".
 
 A Malaysian take on [SecondHand](https://secondhand.sangsara.net) (Singapore).
 
@@ -20,11 +21,14 @@ A Malaysian take on [SecondHand](https://secondhand.sangsara.net) (Singapore).
 - **Brand picker.** Eight cigarette styles under the site's own parody house brand (Classic, Red, Menthol, Kretek with
   crackling sparks, Nipah leaf, Gold slim, Black, Cigar). They restyle the sticks, the butts in the ashtray, and the
   "Jerebu" pack on the table. No real tobacco brands are used, since Malaysia bans promoting smoking products.
-- **State → city.** Pick any of the 16 states and federal territories, then a city within it. Stations are grouped
+- **Opens where you are.** On load the page jumps to your nearest city: first a rough guess from Vercel's IP
+  geolocation (no prompt), then your browser's precise location if you allow it. Whatever you pick yourself wins.
+  `?at=lat,lon` previews the page as if you were somewhere else.
+- **State → city.** Pick any of the 16 states and federal territories, or Singapore, then a city (or NEA region) within it. Stations are grouped
   into the cities people know (e.g. Tasek Ipoh + Pegoh Ipoh → Ipoh), biggest city first, or you can view the state average.
 - **Hold the map.** Hold the *Hold* button (or the `M` key) to see a paper map of Malaysia with every station
   and each state's number. A quick tap pins the map open.
-- **Near me** picks your nearest station, using your browser's location.
+- **Near me** re-centres on your precise location.
 - **Last 24 hours** sparkline, a **Smokiest cities right now** ranking, and a **Simulate** slider (API 0–500).
 - **English / Bahasa Melayu** toggle.
 
@@ -36,6 +40,9 @@ A Malaysian take on [SecondHand](https://secondhand.sangsara.net) (Singapore).
    API 100 ↔ 35 µg/m³, the Malaysian Ambient Air Quality Standard 2020 PM2.5 24-hour limit. From API 200 up it
    follows the US PSI breakpoints, which Malaysia's upper bands mirror. See [`js/aqi.js`](js/aqi.js).
 3. **Berkeley Earth's** rule of thumb: breathing 22 µg/m³ of PM2.5 for a day ≈ smoking 1 cigarette.
+
+Singapore needs no estimate: NEA publishes the measured 24-hour PM2.5 for each region, so that is used directly
+(and the 24-hour PSI drives the colours and the scene).
 
 The PM2.5 figure is an estimate, not a measurement. This is satire, not medical advice.
 
@@ -51,15 +58,16 @@ index.html, css/, js/       static site
   js/map.js                 paper map overlay (Natural Earth outline, Mercator)
   js/aqi.js                 API → PM2.5 → cigarettes, bands, states, city grouping
   js/app.js                 data loading, UI, i18n
-api/air.js                  GET /api/air: proxies DOE mapcaqm (DOE's CORS only allows its own origin)
-api/trend.js                GET /api/trend?states=…: last 24 h per station
+api/air.js                  GET /api/air: DOE mapcaqm (proxied: DOE's CORS only allows its own origin) + NEA PSI
+api/trend.js                GET /api/trend?states=…: last 24 h per station (99 = Singapore)
+api/where.js                GET /api/where: approximate visitor location from Vercel's IP headers (never cached)
 api/_lib.js                 shared fetch helpers + Open-Meteo fallback
 data/snapshot.json          last-resort offline data
 ```
 
 - Responses are cached at Vercel's edge for 5–10 minutes, so DOE gets very little traffic.
-- If DOE is unreachable, `/api/air` falls back to modelled PM2.5 from [Open-Meteo](https://open-meteo.com/) (CAMS),
-  and the page shows a badge saying so.
+- If DOE or NEA is unreachable, `/api/air` falls back to modelled PM2.5 from [Open-Meteo](https://open-meteo.com/) (CAMS)
+  for that country, and the page shows a badge saying so.
 - Functions run in `sin1` (Singapore), the region closest to Malaysia.
 
 ## Run locally
@@ -80,7 +88,7 @@ Or import the GitHub repo in the Vercel dashboard. There's no framework, and the
 
 ## Credits
 
-- Air quality data: Jabatan Alam Sekitar Malaysia (DOE), APIMS
+- Air quality data: Jabatan Alam Sekitar Malaysia (DOE), APIMS; Singapore NEA via data.gov.sg
 - Cigarette equivalence: Berkeley Earth
 - Map outline: Natural Earth via `world-atlas`
 - Concept: SecondHand by sangsara

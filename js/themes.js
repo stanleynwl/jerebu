@@ -498,6 +498,79 @@ const ipohStation = () => {
   return `<rect x="-512" y="0" width="1024" height="10" class="corn"/>${wings}${ends}${mids}${centre}`;
 };
 
+// ---------- Singapore ----------
+// Marina Bay Sands: three towers carrying the SkyPark
+const mbs = () => {
+  const tower = (x) => {
+    let floors = '';
+    for (let y = -14; y > -296; y -= 14) floors += `<line x1="${x - 24}" y1="${y}" x2="${x + 26}" y2="${y}"/>`;
+    return `<path d="M${x - 26},0 L${x - 22},-298 L${x + 22},-298 C${x + 18},-200 ${x + 24},-90 ${x + 30},0 Z" class="lm-body"/>
+      <path d="M${x},-298 L${x + 22},-298 C${x + 18},-200 ${x + 24},-90 ${x + 30},0 L${x + 2},0 Z" class="lm-lit"/><g class="lm-fins">${floors}</g>`;
+  };
+  return `${tower(-112)}${tower(0)}${tower(112)}
+    <path d="M-196,-298 L200,-306 Q222,-307 234,-298 L234,-292 L-192,-287 Z" class="lm-body"/>
+    <path d="M-150,-305 Q-40,-316 170,-312" stroke="var(--ac-green)" stroke-width="5" fill="none" stroke-linecap="round"/>
+    ${Array.from({ length: 18 }, (_, i) => `<circle cx="${-180 + i * 22}" cy="-292" r="1.6" class="win-lit"/>`).join('')}`;
+};
+
+// Singapore Flyer: the wheel turns, very slowly
+const singaporeFlyer = () => {
+  let spokes = '', pods = '';
+  for (let i = 0; i < 28; i++) {
+    const a = (i * Math.PI * 2) / 28, x = Math.cos(a) * 120, y = Math.sin(a) * 120;
+    pods += `<rect x="${f(x - 5)}" y="${f(y - 4)}" width="10" height="8" rx="3" class="kwin"/>`;
+    if (i % 2 === 0) spokes += `<line x1="0" y1="0" x2="${f(x)}" y2="${f(y)}"/>`;
+  }
+  return `<path d="M-70,0 L0,-150 L70,0 M-46,0 L0,-150" class="lattice"/>
+    <g transform="translate(0 -150)"><g class="spin-slow"><circle r="120" class="wheel"/><circle r="110" class="wheel thin"/><g class="spokes">${spokes}</g>${pods}</g><circle r="9" class="lm-body"/></g>
+    <rect x="-100" y="-18" width="200" height="18" class="lm-body"/><rect x="-96" y="-14" width="192" height="5" class="win-lit"/>`;
+};
+
+// the Merlion, facing right, spouting into the bay
+const merlion = () => `<rect x="-44" y="-26" width="88" height="26" class="rock"/>
+  <path d="M-32,-26 C-46,-66 -24,-96 4,-104 C18,-108 30,-98 26,-86 C10,-82 0,-62 6,-44 C10,-34 20,-28 32,-26 Z" class="wall"/>
+  <path d="M-34,-34 C-52,-44 -60,-26 -46,-20 Z" class="wall"/>
+  <path d="M-14,-74 q8,6 16,0 M-18,-58 q8,6 16,0 M-18,-42 q8,6 16,0" class="scales"/>
+  <circle cx="14" cy="-122" r="22" class="wall"/>
+  <path d="M-8,-140 q-10,-2 -10,8 q-10,2 -6,11 q-8,6 0,12 q-4,8 6,10 q2,8 12,4" class="wall"/>
+  <path d="M-8,-140 q-10,-2 -10,8 q-10,2 -6,11 q-8,6 0,12 q-4,8 6,10 q2,8 12,4" class="scales"/>
+  <circle cx="22" cy="-128" r="2.4" class="lamp-post"/><path d="M30,-116 q6,2 6,6" class="scales"/>
+  <path d="M36,-112 Q130,-170 236,-6" class="jet"/><path d="M36,-110 Q120,-150 214,-6" class="jet thin"/>`;
+
+// Gardens by the Bay supertree; the crowns light up after dark
+const supertree = (x, base, h, w) => `<path d="M${x - 10},${base} L${x - 3},${base - h} L${x + 3},${base - h} L${x + 10},${base} Z" class="st-trunk"/>
+  <path d="M${x - 4},${base - h} L${x - w},${base - h - 34} L${x + w},${base - h - 34} L${x + 4},${base - h} Z" class="st-crown"/>
+  <path d="M${x},${base - h} L${f(x - w * 0.6)},${base - h - 34} M${x},${base - h} L${x},${base - h - 34} M${x},${base - h} L${f(x + w * 0.6)},${base - h - 34}" class="st-lines"/>
+  <ellipse cx="${x}" cy="${base - h - 34}" rx="${w}" ry="5" class="st-glow"/>`;
+
+// HDB slab blocks with block numbers, corridors, lit windows and laundry poles
+function hdbBlocks(r, base) {
+  let out = '', wins = '', laundry = '';
+  let x = -40, i = 0;
+  while (x < W + 40) {
+    const w = 120 + r() * 60, h = 200 + r() * 140, top = base - h;
+    const c = `var(--f${(i * 3 + 2) % FACADES.length})`;
+    out += `<rect x="${f(x)}" y="${f(top)}" width="${f(w)}" height="${f(h)}" fill="${c}"/><rect x="${f(x)}" y="${f(top)}" width="${f(w)}" height="${f(h)}" fill="url(#facadeShade)"/>
+      <rect x="${f(x + w * 0.3)}" y="${f(top - 18)}" width="${f(w * 0.4)}" height="18" fill="${c}"/><rect x="${f(x + w * 0.3)}" y="${f(top - 18)}" width="${f(w * 0.4)}" height="18" class="hdb-dim"/>
+      <rect x="${f(x + 8)}" y="${f(top + 6)}" width="${f(w - 16)}" height="14" class="hdb-dim"/><text x="${f(x + w / 2)}" y="${f(top + 17)}" class="blk">BLK ${100 + Math.floor(r() * 800)}</text>`;
+    for (let y = top + 28; y < base - 20; y += 14) {
+      out += `<rect x="${f(x)}" y="${f(y + 9)}" width="${f(w)}" height="2" class="hdb-dim"/>`;
+      for (let wx = x + 8; wx < x + w - 10; wx += 14) {
+        if (r() > 0.45) wins += `<rect x="${f(wx)}" y="${f(y)}" width="7" height="7" class="win" style="animation-duration:${(4 + r() * 9).toFixed(1)}s;animation-delay:${(-r() * 12).toFixed(1)}s"/>`;
+        if (r() > 0.95) {
+          laundry += `<line x1="${f(wx + 7)}" y1="${f(y + 2)}" x2="${f(wx + 26)}" y2="${f(y + 2)}" class="pole"/>`
+            + [0, 7, 13].map((d) => `<rect x="${f(wx + 9 + d)}" y="${f(y + 2)}" width="5" height="${(5 + r() * 4).toFixed(1)}" fill="var(--ac-${pick(r, ['red', 'blue', 'yellow', 'white', 'teal', 'pink'])})" class="cloth" style="animation-delay:${(-r() * 2).toFixed(1)}s"/>`).join('');
+        }
+      }
+    }
+    out += `<rect x="${f(x)}" y="${base - 20}" width="${f(w)}" height="20" class="arch"/>`
+      + [0.1, 0.4, 0.7, 0.95].map((k) => `<rect x="${f(x + w * k - 3)}" y="${base - 20}" width="6" height="20" fill="${c}"/>`).join('');
+    x += w + 20 + r() * 40;
+    i++;
+  }
+  return `${out}<g class="far-wins">${wins}</g><g>${laundry}</g>`;
+}
+
 // Malaysia's flag, waving from its hoist edge at (0,0)
 function jalurGemilang() {
   let stripes = '';
@@ -833,6 +906,30 @@ export const THEMES = {
       mid: `<rect x="-60" y="892" width="${W + 120}" height="20" class="wood"/>` + palm(40, GND, 0.85) + palm(990, GND, 0.85, true),
     };
   }),
+  singapore: T('Marina Bay · Merlion', 'Teluk Marina · Merlion', 'plane', (r) => {
+    const sands = place(mbs(), 770, HZ - 2);
+    return {
+      far: city(r, { x0: -10, x1: 620, minH: 140, maxH: 340, wave: false }) + place(singaporeFlyer(), 150, HZ, 0.95)
+        + sands + supertree(872, HZ + 4, 118, 34) + supertree(926, HZ + 4, 158, 42) + supertree(980, HZ + 4, 104, 30)
+        + water(r, HZ, 884, mirror(sands, HZ)) + boats(r, 790, 850, 3, 0.45),
+      mid: `<rect x="-60" y="880" width="${W + 120}" height="32" class="concrete"/><path d="M-60,872 H${W + 60}" class="rail"/>`
+        + [120, 300, 480, 660, 840].map((x) => `<line x1="${x}" y1="872" x2="${x}" y2="882" class="rail"/>`).join('')
+        + place(merlion(), 70, 884),
+    };
+  }),
+  hdb: T('HDB heartland · MRT', 'Kawasan HDB · MRT', 'plane', (r) => {
+    const deckY = 792;
+    const car = (k) => `<g transform="translate(${k * 134} 0)"><rect x="0" y="${deckY - 28}" width="130" height="26" rx="${k === 0 ? 10 : 4}" fill="var(--ac-white)"/>
+      <rect x="0" y="${deckY - 12}" width="130" height="4" fill="var(--ac-red)"/>${[10, 34, 58, 82, 106].map((x) => `<rect x="${x}" y="${deckY - 24}" width="16" height="9" rx="2" class="kwin"/>`).join('')}</g>`;
+    let pillars = '';
+    for (let x = 60; x < W; x += 170) pillars += `<rect x="${x}" y="${deckY + 14}" width="24" height="${GND - deckY - 14}" class="concrete-dk"/>`;
+    return {
+      far: hdbBlocks(r, HZ + 20),
+      mid: pillars + `<g class="mrt">${[0, 1, 2, 3].map(car).join('')}</g>`
+        + `<rect x="-20" y="${deckY - 2}" width="${W + 40}" height="16" class="concrete"/><rect x="-20" y="${deckY - 2}" width="${W + 40}" height="3" class="concrete-dk"/>`
+        + place(rainTree(0.8), 70, GND) + place(rainTree(0.75), 960, GND),
+    };
+  }),
   town: T('', '', 'plane', (r) => ({ far: townFar(r), mid: townMid(r) })),
 };
 
@@ -867,8 +964,10 @@ const CITY_THEME = {
   'Kuching': 'kuching', 'Miri': 'miri', 'Sibu': 'sibu', 'Bintulu': 'lng', 'Samarahan': 'kampung', 'Serian': 'rainforest',
   'Sri Aman': 'rainforest', 'Sarikei': 'rainforest', 'Mukah': 'beach', 'Kapit': 'longhouse', 'Limbang': 'rainforest', 'Samalaju': 'industrial',
   'Labuan': 'port',
+  // Singapore's NEA regions
+  'Central': 'singapore', 'South': 'singapore', 'North': 'hdb', 'East': 'hdb', 'West': 'hdb',
 };
-const STATE_THEME = { 14: 'kl', 10: 'shahalam', 16: 'putrajaya', 7: 'georgetown', 8: 'ipoh', 2: 'alorsetar', 9: 'paddykarst', 5: 'seremban', 4: 'melaka', 1: 'jb', 6: 'kuantan', 11: 'crystal', 3: 'wau', 12: 'kk', 13: 'kuching', 15: 'port' };
+const STATE_THEME = { 14: 'kl', 10: 'shahalam', 16: 'putrajaya', 7: 'georgetown', 8: 'ipoh', 2: 'alorsetar', 9: 'paddykarst', 5: 'seremban', 4: 'melaka', 1: 'jb', 6: 'kuantan', 11: 'crystal', 3: 'wau', 12: 'kk', 13: 'kuching', 15: 'port', 99: 'singapore' };
 
 export function themeFor(stateId, cityKey) {
   const key = (cityKey && CITY_THEME[cityKey]) || STATE_THEME[stateId] || 'kl';
